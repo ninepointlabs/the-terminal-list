@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Terminal List · a watch list for WoW Forever</title>
+<meta name="description" content="The Terminal List: a personal, account-wide watch list for World of Warcraft: Forever. Help is the default. The List is for the players who forfeited it. Crosshair marks on nameplates, tooltips and chat; open-world PvP killers added for you.">
+<meta name="theme-color" content="#0d0d0b">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Special+Elite&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0b;
+    --bg2: #15140f;
+    --panel: #1b1a14;
+    --line: #34311f;
+    --text: #e9e4d2;
+    --dim: #a29d88;
+    --red: #e23a33;
+    --red-dim: #8f2622;
+    --olive: #7d8450;
+    --manila: #d9c99a;
+    --manila-dark: #c4b27c;
+    --ink: #1c1810;
+    --ink-dim: #4c4330;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 17px/1.6 "IBM Plex Sans", system-ui, sans-serif;
+    background-image:
+      radial-gradient(ellipse at 50% -10%, rgba(226,58,51,.10), transparent 60%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0 1px, transparent 1px 3px);
+    overflow-x: hidden;
+  }
+  a { color: var(--red); text-underline-offset: 3px; }
+  a:hover { color: #ff6a5e; }
+  code, pre, .mono { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
+  code { font-size: .9em; background: rgba(255,255,255,.06); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; overflow-wrap: anywhere; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+  .hero-grid > *, .roe > *, .install > *, .files > *, .caps > * { min-width: 0; }
+
+  /* top bar */
+  .topbar { position: sticky; top: 0; z-index: 10; background: rgba(13,13,11,.92); backdrop-filter: blur(6px); border-bottom: 1px solid var(--line); }
+  .topbar .wrap { display: flex; align-items: center; gap: 16px; min-height: 52px; flex-wrap: wrap; }
+  .brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-family: "Black Ops One", Impact, sans-serif; letter-spacing: .04em; font-size: 1.05rem; }
+  .brand svg { width: 26px; height: 26px; }
+  .nav { display: flex; gap: 14px; margin-left: auto; flex-wrap: wrap; font-family: "IBM Plex Mono", monospace; font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; }
+  .nav a { color: var(--dim); text-decoration: none; }
+  .nav a:hover { color: var(--red); }
+  @media (max-width: 640px) { .nav { display: none; } }
+
+  /* classification banners */
+  .classbar { background: var(--red-dim); color: #ffe9e4; text-align: center; font: 600 .72rem/1 "IBM Plex Mono", monospace; letter-spacing: .25em; padding: 6px 8px; text-transform: uppercase; }
+
+  /* hero */
+  .hero { padding: 56px 0 40px; position: relative; }
+  .hero-grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 40px; align-items: center; }
+  @media (max-width: 860px) { .hero-grid { grid-template-columns: 1fr; } .hero-mark { order: -1; max-width: 220px; } }
+  .kicker { font: 600 .78rem/1.4 "IBM Plex Mono", monospace; letter-spacing: .18em; text-transform: uppercase; color: var(--olive); margin: 0 0 14px; }
+  h1.title { font-family: "Black Ops One", Impact, sans-serif; font-weight: 400; font-size: clamp(2.6rem, 8vw, 5rem); line-height: .95; margin: 0 0 18px; letter-spacing: .02em; text-transform: uppercase; }
+  h1.title span { color: var(--red); }
+  .tagline { font-family: "Special Elite", "Courier New", monospace; font-size: clamp(1.35rem, 3.4vw, 1.9rem); line-height: 1.3; margin: 0 0 18px; }
+  .tagline s { text-decoration-color: var(--red); text-decoration-thickness: 3px; color: var(--dim); }
+  .lede { color: var(--dim); max-width: 38em; margin: 0 0 26px; }
+  .cta { display: flex; flex-wrap: wrap; gap: 12px; }
+  .btn { display: inline-block; font: 600 .85rem/1 "IBM Plex Mono", monospace; letter-spacing: .1em; text-transform: uppercase; padding: 14px 18px; border: 2px solid var(--red); color: #fff; background: var(--red); text-decoration: none; border-radius: 2px; cursor: pointer; }
+  .btn:hover { background: #ff4d44; color: #fff; }
+  .btn.ghost { background: transparent; color: var(--text); border-color: var(--line); }
+  .btn.ghost:hover { border-color: var(--red); color: var(--red); }
+  .hero-mark { position: relative; justify-self: center; width: 100%; max-width: 340px; aspect-ratio: 1; }
+  .hero-mark svg.cross { width: 100%; height: 100%; filter: drop-shadow(0 0 30px rgba(226,58,51,.35)); animation: drift 9s ease-in-out infinite; }
+  @media (max-width: 860px) { .hero-mark { max-width: 200px; } }
+  @keyframes drift { 0%,100% { transform: translate(0,0) rotate(0); } 25% { transform: translate(6px,-4px) rotate(1deg); } 50% { transform: translate(-3px,5px) rotate(-1deg); } 75% { transform: translate(-6px,-2px) rotate(.5deg); } }
+  @media (prefers-reduced-motion: reduce) { .hero-mark svg.cross { animation: none; } html { scroll-behavior: auto; } }
+  .hero-mark .readout { position: absolute; left: 0; right: 0; bottom: -6px; text-align: center; font: .72rem/1.4 "IBM Plex Mono", monospace; color: var(--dim); letter-spacing: .12em; text-transform: uppercase; }
+
+  /* sections */
+  section.block { padding: 56px 0; border-top: 1px solid var(--line); }
+  h2 { font-family: "Black Ops One", Impact, sans-serif; font-weight: 400; font-size: clamp(1.7rem, 4.5vw, 2.4rem); letter-spacing: .03em; text-transform: uppercase; margin: 0 0 8px; line-height: 1.15; }
+  h2 .num { color: var(--red); font-size: .6em; vertical-align: middle; margin-right: 10px; font-family: "IBM Plex Mono", monospace; }
+  .sub { color: var(--dim); margin: 0 0 30px; max-width: 46em; }
+  h3 { font-family: "IBM Plex Mono", monospace; font-size: 1rem; text-transform: uppercase; letter-spacing: .08em; margin: 0 0 8px; color: var(--text); }
+
+  /* rules of engagement */
+  .roe { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+  @media (max-width: 860px) { .roe { grid-template-columns: 1fr; } }
+  .memo { background: var(--manila); color: var(--ink); padding: 28px 26px 26px; border-radius: 2px; position: relative; box-shadow: 0 12px 30px rgba(0,0,0,.45); font-family: "Special Elite", "Courier New", monospace; transform: rotate(-.6deg); }
+  .memo::before { content: ""; position: absolute; top: -12px; left: 24px; width: 120px; height: 20px; background: var(--manila-dark); border-radius: 4px 4px 0 0; }
+  .memo .hdr { display: flex; justify-content: space-between; gap: 10px; font-size: .78rem; color: var(--ink-dim); border-bottom: 1px dashed var(--ink-dim); padding-bottom: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+  .memo p { margin: 0 0 12px; font-size: 1.02rem; line-height: 1.55; }
+  .memo .sig { margin-top: 18px; font-size: .85rem; color: var(--ink-dim); }
+  ol.rules { list-style: none; counter-reset: r; margin: 0; padding: 0; }
+  ol.rules li { counter-increment: r; position: relative; padding: 14px 16px 14px 64px; border: 1px solid var(--line); background: var(--panel); margin-bottom: 10px; border-radius: 2px; }
+  ol.rules li::before { content: "ROE " counter(r); position: absolute; left: 12px; top: 15px; font: 600 .68rem/1 "IBM Plex Mono", monospace; color: var(--red); letter-spacing: .06em; width: 44px; }
+  ol.rules strong { display: block; color: var(--text); }
+  ol.rules span { color: var(--dim); font-size: .95rem; }
+
+  /* dossiers */
+  .files { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 22px; }
+  @media (max-width: 360px) { .files { grid-template-columns: 1fr; } }
+  .dossier { position: relative; background: var(--manila); color: var(--ink); padding: 22px 20px 20px; border-radius: 2px; box-shadow: 0 10px 24px rgba(0,0,0,.4); font-family: "Special Elite", "Courier New", monospace; transition: transform .2s ease; }
+  .dossier:nth-child(odd) { transform: rotate(-.5deg); }
+  .dossier:nth-child(even) { transform: rotate(.45deg); }
+  .dossier:hover { transform: rotate(0) translateY(-3px); }
+  .dossier .fileno { display: flex; justify-content: space-between; font-size: .72rem; color: var(--ink-dim); letter-spacing: .08em; border-bottom: 1px dashed var(--ink-dim); padding-bottom: 6px; margin-bottom: 12px; }
+  .dossier h3 { font-family: "Black Ops One", Impact, sans-serif; font-weight: 400; text-transform: uppercase; font-size: 1.3rem; letter-spacing: .03em; color: var(--ink); margin: 0 0 4px; }
+  .dossier .name { font-size: .85rem; color: var(--ink-dim); margin: 0 0 12px; }
+  .redact { background: var(--ink); color: transparent; border-radius: 1px; padding: 0 3px; user-select: none; cursor: help; transition: background .25s, color .25s; }
+  .redact.open { background: rgba(28,24,16,.12); color: var(--red-dim); }
+  .dossier dl { margin: 0; }
+  .dossier dt { font-size: .72rem; letter-spacing: .14em; text-transform: uppercase; color: var(--red-dim); margin-top: 10px; }
+  .dossier dd { margin: 2px 0 0; font-size: .98rem; line-height: 1.45; }
+  .dossier .status { display: inline-block; margin-top: 4px; }
+  .stamp { position: absolute; right: 12px; bottom: 14px; font: 400 .95rem/1 "Black Ops One", Impact, sans-serif; color: var(--red); border: 3px double var(--red); padding: 6px 8px 4px; transform: rotate(-12deg); opacity: .78; letter-spacing: .06em; text-transform: uppercase; pointer-events: none; mix-blend-mode: multiply; }
+  .dossier .assess { font-size: .82rem; color: var(--ink-dim); margin: 14px 0 0; padding-right: 110px; font-style: italic; }
+  .filesnote { color: var(--dim); font-size: .9rem; margin-top: 26px; }
+
+  /* capabilities */
+  .caps { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+  .cap { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--red); padding: 18px 18px 14px; border-radius: 2px; }
+  .cap p { margin: 0 0 8px; color: var(--dim); font-size: .96rem; }
+  .cap p:last-child { margin-bottom: 0; }
+  .intel { margin-top: 22px; background: #201510; border: 1px dashed var(--red); padding: 18px 20px; border-radius: 2px; }
+  .intel h3 { color: var(--red); }
+  .intel p { margin: 0 0 8px; color: var(--text); font-size: .96rem; }
+  .intel p:last-child { margin-bottom: 0; color: var(--dim); }
+
+  /* commands */
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 2px; margin-top: 22px; }
+  table { width: 100%; border-collapse: collapse; font-size: .94rem; background: var(--panel); }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 600 .72rem/1 "IBM Plex Mono", monospace; letter-spacing: .14em; text-transform: uppercase; color: var(--olive); background: var(--bg2); }
+  tr:last-child td { border-bottom: 0; }
+  td code { white-space: nowrap; }
+  @media (max-width: 640px) { td code { white-space: normal; word-break: break-word; } th, td { padding: 9px 10px; } }
+
+  /* install */
+  .install { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 860px) { .install { grid-template-columns: 1fr; } }
+  .term { background: #070706; border: 1px solid var(--line); border-radius: 4px; overflow: hidden; }
+  .term .bar { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: var(--bg2); border-bottom: 1px solid var(--line); font: .72rem/1 "IBM Plex Mono", monospace; color: var(--dim); letter-spacing: .1em; text-transform: uppercase; }
+  .term pre { margin: 0; padding: 16px; overflow-x: auto; font-size: .9rem; color: #f1ecd9; }
+  .term pre .p { color: var(--red); user-select: none; }
+  .copy { font: 600 .7rem/1 "IBM Plex Mono", monospace; letter-spacing: .1em; text-transform: uppercase; background: transparent; color: var(--text); border: 1px solid var(--line); padding: 6px 9px; border-radius: 2px; cursor: pointer; }
+  .copy:hover { border-color: var(--red); color: var(--red); }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 2px; padding: 18px 20px; }
+  .panel p { margin: 0 0 10px; color: var(--dim); }
+  .panel p:last-child { margin-bottom: 0; }
+  .panel strong { color: var(--text); }
+
+  /* am I on it */
+  .check { text-align: center; padding: 50px 0; border-top: 1px solid var(--line); }
+  .check p { color: var(--dim); max-width: 36em; margin: 14px auto 0; min-height: 3.2em; font-family: "Special Elite", "Courier New", monospace; font-size: 1.05rem; }
+
+  /* footer */
+  footer { border-top: 1px solid var(--line); padding: 36px 0 48px; color: var(--dim); font-size: .88rem; }
+  .flinks { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-bottom: 18px; font-family: "IBM Plex Mono", monospace; font-size: .82rem; }
+  .flinks a { color: var(--text); text-decoration: none; border-bottom: 1px solid var(--line); }
+  .flinks a:hover { color: var(--red); border-color: var(--red); }
+  .flabel { font: 600 .7rem/1 "IBM Plex Mono", monospace; letter-spacing: .16em; text-transform: uppercase; color: var(--olive); margin: 0 0 10px; }
+  .legal p { margin: 0 0 8px; max-width: 62em; }
+  .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(calc(100% + 40px)); background: var(--red); color: #fff; font: 600 .78rem/1 "IBM Plex Mono", monospace; letter-spacing: .1em; text-transform: uppercase; padding: 12px 16px; border-radius: 2px; transition: transform .25s ease; z-index: 20; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+<script>window.goatcounter={path:function(p){return location.host+p}}</script>
+<script data-goatcounter="https://goatcounter-production-af4b.up.railway.app/count" async src="https://goatcounter-production-af4b.up.railway.app/count.js"></script>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="xhair" viewBox="0 0 64 64">
+      <g fill="none" stroke="#0c0606" stroke-width="7.2"><circle cx="32" cy="32" r="20"/><path d="M32 1v22M32 41v22M1 32h22M41 32h22"/></g>
+      <circle cx="32" cy="32" r="4.6" fill="#0c0606"/>
+      <g fill="none" stroke="#eb3030" stroke-width="4"><circle cx="32" cy="32" r="20"/><path d="M32 1v22M32 41v22M1 32h22M41 32h22"/></g>
+      <circle cx="32" cy="32" r="3" fill="#eb3030"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="classbar">Unclassified // For Azeroth use only // Contents may be petty</div>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="The Terminal List, back to top">
+      <svg aria-hidden="true"><use href="#xhair"/></svg>
+      <span>The Terminal List</span>
+    </a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#roe">Rules</a>
+      <a href="#files">Target files</a>
+      <a href="#capability">Capability</a>
+      <a href="#acquire">Install</a>
+      <a href="https://github.com/ninepointlabs/the-terminal-list">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+<section class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <p class="kicker">Target package // World of Warcraft: Forever // v0.1.0</p>
+      <h1 class="title">The Terminal <span>List</span></h1>
+      <p class="tagline">I'll help anyone. <s>Everyone.</s> Almost anyone.</p>
+      <p class="lede">
+        Help is the default. Low on health with three adds? Somebody steps in. The Terminal List
+        is a short file of the players who spent that goodwill in one go, so the next time one of
+        them is face-down under five mobs, you already know: keep walking, save your mana for
+        somebody who'd do the same for you.
+      </p>
+      <div class="cta">
+        <a class="btn" href="#acquire">Acquire the package</a>
+        <a class="btn ghost" href="#files">Read the files</a>
+      </div>
+    </div>
+    <div class="hero-mark" aria-hidden="true">
+      <svg class="cross"><use href="#xhair"/></svg>
+      <div class="readout" id="readout">Scanning nameplates…</div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="roe">
+  <div class="wrap">
+    <h2><span class="num">01</span>Rules of Engagement</h2>
+    <p class="sub">The doctrine, such as it is. Read it before you add anyone.</p>
+    <div class="roe">
+      <div class="memo">
+        <div class="hdr"><span>MEMO // ROE-001</span><span>RE: Why this exists</span></div>
+        <p>I help people. That's the setting it shipped with. You're losing to a pack of wolves, I'll
+          drop what I'm doing. You died in a cave, I'll walk your corpse run with you if I'm nearby.</p>
+        <p>But some players make it very clear, very fast, that they'd never return the favour. They
+          take the ore out from under you, the chest you waited on, the kill you earned, and then they ride off.</p>
+        <p>Those players go on The List. Once they're on it I don't have to think about it again.
+          When I find one of them later, pinned by five mobs and yelling for help, I check the
+          crosshair, I wave, and I keep my energy for somebody who deserves it.</p>
+        <p>Nobody's being hunted. Help stays free. These folks just gave theirs up.</p>
+        <p class="sig">— The Management. Filed in a good mood, mostly.</p>
+      </div>
+      <ol class="rules">
+        <li><strong>Help is the default.</strong><span>Heal the stranger. Peel the add. Res the guy on the road. Nobody pays for that.</span></li>
+        <li><strong>You have to earn your spot.</strong><span>One wipe, one bad pull or one clumsy moment isn't a crime. Doing it on purpose is.</span></li>
+        <li><strong>The file stays open.</strong><span>Your entry doesn't expire. Change your attitude and you can explain it to the five murlocs.</span></li>
+        <li><strong>Spend your energy wisely.</strong><span>Mana, potions and time are limited. Use them on players who'd give some back.</span></li>
+        <li><strong>The List remembers. It doesn't attack.</strong><span>It's a watch list, not a hit list. It marks people; what you do next is up to you, and the answer is usually "nothing."</span></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="files">
+  <div class="wrap">
+    <h2><span class="num">02</span>Target Files</h2>
+    <p class="sub">Profiles of the players who earned a place on The List. Composites, not real people.
+      Tap a black bar to declassify the alias; the real names stay in your own copy.</p>
+
+    <div class="files">
+
+      <article class="dossier">
+        <div class="fileno"><span>FILE TTL-0007</span><span>EYES ONLY</span></div>
+        <h3>The Prospector</h3>
+        <p class="name">Name: <span class="redact" tabindex="0">Orebert Nodegrabber</span></p>
+        <dl>
+          <dt>Crime</dt>
+          <dd>Mined the gold vein you were standing on while you fought the three mobs guarding it. Didn't cast a spell, didn't say a word. Just the pickaxe noise.</dd>
+          <dt>Last seen</dt>
+          <dd>Mounted up and heading for the next node. You were also heading there.</dd>
+          <dt>Status</dt>
+          <dd class="status">On the list</dd>
+        </dl>
+        <p class="assess">Threat: low. Nerve: unbelievable.</p>
+        <div class="stamp">On the list</div>
+      </article>
+
+      <article class="dossier">
+        <div class="fileno"><span>FILE TTL-0011</span><span>EYES ONLY</span></div>
+        <h3>The Snake</h3>
+        <p class="name">Name: <span class="redact" tabindex="0">Lootimus Prime</span></p>
+        <dl>
+          <dt>Crime</dt>
+          <dd>You'd been standing over the quest item spawn for five minutes. They walked up in minute five and clicked it from the saddle without dismounting.</dd>
+          <dt>Last seen</dt>
+          <dd>Turning in your quest. Smiling, probably.</dd>
+          <dt>Status</dt>
+          <dd class="status">On the list</dd>
+        </dl>
+        <p class="assess">Timing like that takes skill. It went to waste.</p>
+        <div class="stamp">On the list</div>
+      </article>
+
+      <article class="dossier">
+        <div class="fileno"><span>FILE TTL-0019</span><span>EYES ONLY</span></div>
+        <h3>Tag &amp; Bail</h3>
+        <p class="name">Name: <span class="redact" tabindex="0">Oneshot McGee</span></p>
+        <dl>
+          <dt>Crime</dt>
+          <dd>Tagged your mob with one shot from max range, then left to go do anything else. You did all the work; the corpse stayed grey.</dd>
+          <dt>Last seen</dt>
+          <dd>Forty yards away, auto-running into a fence.</dd>
+          <dt>Status</dt>
+          <dd class="status">On the list</dd>
+        </dl>
+        <p class="assess">Damage done: 41. Damage to reputation: considerable.</p>
+        <div class="stamp">On the list</div>
+      </article>
+
+      <article class="dossier">
+        <div class="fileno"><span>FILE TTL-0023</span><span>EYES ONLY</span></div>
+        <h3>The Groundskeeper</h3>
+        <p class="name">Name: <span class="redact" tabindex="0">Campbell Graveside</span></p>
+        <dl>
+          <dt>Crime</dt>
+          <dd>Killed you, then parked on your corpse. Killed you again when you came back. Six times. Started using /sit around number four.</dd>
+          <dt>Last seen</dt>
+          <dd>Same spot. Still there. Clearly has nowhere else to be.</dd>
+          <dt>Status</dt>
+          <dd class="status">On the list</dd>
+        </dl>
+        <p class="assess">Infinite patience, no hobbies.</p>
+        <div class="stamp">On the list</div>
+      </article>
+
+      <article class="dossier">
+        <div class="fileno"><span>FILE TTL-0031</span><span>EYES ONLY</span></div>
+        <h3>Need Before Greed</h3>
+        <p class="name">Name: <span class="redact" tabindex="0">Ninjamin Rollsworth</span></p>
+        <dl>
+          <dt>Crime</dt>
+          <dd>Rolled Need on the healer's wand. Is a warrior. Left the group before the boss had finished falling over.</dd>
+          <dt>Last seen</dt>
+          <dd>At the Auction House, listing it.</dd>
+          <dt>Status</dt>
+          <dd class="status">On the list</dd>
+        </dl>
+        <p class="assess">Claimed it was "for a twink". The twink does not exist.</p>
+        <div class="stamp">On the list</div>
+      </article>
+
+      <article class="dossier">
+        <div class="fileno"><span>FILE TTL-0037</span><span>EYES ONLY</span></div>
+        <h3>The Conductor</h3>
+        <p class="name">Name: <span class="redact" tabindex="0">Pullson Everything</span></p>
+        <dl>
+          <dt>Crime</dt>
+          <dd>Pulled the whole room, plus the patrol, plus something from the next room. Then hit Leave Party before the first mob landed. The tank noticed first.</dd>
+          <dt>Last seen</dt>
+          <dd>Outside the instance portal, looking for group.</dd>
+          <dt>Status</dt>
+          <dd class="status">On the list</dd>
+        </dl>
+        <p class="assess">Gone before the wipe started.</p>
+        <div class="stamp">On the list</div>
+      </article>
+
+      <article class="dossier">
+        <div class="fileno"><span>FILE TTL-0042</span><span>EYES ONLY</span></div>
+        <h3>The Opportunist</h3>
+        <p class="name">Name: <span class="redact" tabindex="0">Thirtypercent Stabby</span></p>
+        <dl>
+          <dt>Crime</dt>
+          <dd>Watched you fight a quest mob down to 30% health, then jumped you. Open-world kill, zero risk, maximum smugness.</dd>
+          <dt>Last seen</dt>
+          <dd>Laughing at your corpse. Already added: open-world PvP deaths go on the list by themselves.</dd>
+          <dt>Status</dt>
+          <dd class="status">On the list (kills: 3)</dd>
+        </dl>
+        <p class="assess">Brave enough to fight anyone at 30%.</p>
+        <div class="stamp">On the list</div>
+      </article>
+
+      <article class="dossier">
+        <div class="fileno"><span>FILE TTL-0048</span><span>EYES ONLY</span></div>
+        <h3>The Spawn Sniper</h3>
+        <p class="name">Name: <span class="redact" tabindex="0">Respawn Hawkeye</span></p>
+        <dl>
+          <dt>Crime</dt>
+          <dd>The named mob you rode across the zone for popped just as you arrived. It was dead and looted before your dismount finished.</dd>
+          <dt>Last seen</dt>
+          <dd>Already gone. They're always already gone.</dd>
+          <dt>Status</dt>
+          <dd class="status">On the list</dd>
+        </dl>
+        <p class="assess">Spawn timer: 45 minutes. Their reflexes: unreasonable.</p>
+        <div class="stamp">On the list</div>
+      </article>
+
+      <article class="dossier">
+        <div class="fileno"><span>FILE TTL-0053</span><span>EYES ONLY</span></div>
+        <h3>The Spectator</h3>
+        <p class="name">Name: <span class="redact" tabindex="0">Clapton Idlehands</span></p>
+        <dl>
+          <dt>Crime</dt>
+          <dd>Stood ten yards away while you died to an elite. Didn't heal. Didn't help. Did /applaud.</dd>
+          <dt>Last seen</dt>
+          <dd>Herbing the flower behind your corpse.</dd>
+          <dt>Status</dt>
+          <dd class="status">On the list</dd>
+        </dl>
+        <p class="assess">Yes, the irony is noted. The difference is that you had a reason.</p>
+        <div class="stamp">On the list</div>
+      </article>
+
+      <article class="dossier">
+        <div class="fileno"><span>FILE TTL-0060</span><span>EYES ONLY</span></div>
+        <h3>The Critic</h3>
+        <p class="name">Name: <span class="redact" tabindex="0">Trade Chatsworth</span></p>
+        <dl>
+          <dt>Crime</dt>
+          <dd>Told General chat your spec was garbage. Asked you for a summon eleven minutes later.</dd>
+          <dt>Last seen</dt>
+          <dd>Walking. Still walking.</dd>
+          <dt>Status</dt>
+          <dd class="status">On the list</dd>
+        </dl>
+        <p class="assess">Lots of opinions, no flight path.</p>
+        <div class="stamp">On the list</div>
+      </article>
+
+    </div>
+    <p class="filesnote">All files are invented archetypes. Any resemblance to that one player you're thinking of right now is your own business.</p>
+  </div>
+</section>
+
+<section class="block" id="capability">
+  <div class="wrap">
+    <h2><span class="num">03</span>Capability</h2>
+    <p class="sub">What the addon actually does. No exaggeration; it's v0.1.0 and in early in-game testing.</p>
+
+    <div class="caps">
+      <div class="cap">
+        <h3>The list</h3>
+        <p>A personal watch list for players who crossed you, were rude, or just don't play nice. <strong>Both factions.</strong></p>
+        <p><strong>Account-wide:</strong> add someone on one character and every character on the account sees it. Stored only on your computer, in your saved variables. Nothing is uploaded or shared.</p>
+      </div>
+      <div class="cap">
+        <h3>Adding by hand</h3>
+        <p><code>/tlist add Name note</code>, or target them and type <code>/tlist add</code>. Notes say why they're on it.</p>
+        <p><strong>Right-click</strong> a player's portrait or their name in chat: <em>Add to The Terminal List</em>, or <em>Edit note</em> / <em>Remove</em> for someone already listed.</p>
+      </div>
+      <div class="cap">
+        <h3>Open-world PvP kills</h3>
+        <p>If a player kills you <strong>in the open world</strong>, they're added for you, and their kill count goes up on repeats.</p>
+        <p><strong>Never counted:</strong> battlegrounds, arenas, dungeons, raids, any other instance, and duels. That's PvP you signed up for.</p>
+      </div>
+      <div class="cap">
+        <h3>Recognition</h3>
+        <p>A red <strong>crosshair</strong> (not a skull) beside their nameplate and on the target frame. A tooltip line with your note and kill count. A crosshair on their chat lines, and their name in red when someone mentions them.</p>
+        <p>An optional once-per-session alert when you first spot one. <strong>Off by default.</strong></p>
+      </div>
+      <div class="cap">
+        <h3>The window</h3>
+        <p><code>/tlist</code>, the minimap button or the addon compartment opens the list: name-realm, race, class, faction, note, how they were added, kills, date and zone.</p>
+        <p>Search, filter by PvP or manual, sort by newest, most kills or name, edit notes, remove.</p>
+      </div>
+    </div>
+
+    <div class="intel">
+      <h3>Intel gap: the combat log on Forever</h3>
+      <p>WoW Forever may not give addons the combat log, and without it no addon can see who landed the killing blow. If that's the case on your client, The Terminal List <strong>doesn't guess</strong>. After an open-world death it <strong>asks</strong>: "You were fighting [your hostile target]. Add them?" You decide.</p>
+      <p>When the combat log is available, killers are added automatically. That path is written and tested against a mock, but it hasn't been confirmed in game yet.</p>
+    </div>
+
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><code>/tlist</code></td><td>Open or close the window</td></tr>
+          <tr><td><code>/tlist add [Name[-Realm]] [note]</code></td><td>Add a player; no name means your current target</td></tr>
+          <tr><td><code>/tlist remove [Name[-Realm]]</code></td><td>Remove; no name means your current target</td></tr>
+          <tr><td><code>/tlist note [Name[-Realm]] [text]</code></td><td>Set the reason note (no text opens an editor)</td></tr>
+          <tr><td><code>/tlist search &lt;text&gt;</code></td><td>Filter by name, realm, note, zone, race or class</td></tr>
+          <tr><td><code>/tlist settings</code></td><td>Settings</td></tr>
+          <tr><td><code>/tlist help</code></td><td>The commands</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="acquire">
+  <div class="wrap">
+    <h2><span class="num">04</span>Acquire the Package</h2>
+    <p class="sub">WoW Forever only. Free, open source, MIT. No keybinds, no macros, no Ace3.</p>
+    <div class="install">
+      <div class="term">
+        <div class="bar"><span>OmaForge (Linux)</span><button class="copy" type="button" data-copy="omaforge install -c forever github:ninepointlabs/the-terminal-list">Copy</button></div>
+        <pre><span class="p">$ </span>omaforge install -c forever github:ninepointlabs/the-terminal-list</pre>
+      </div>
+      <div class="panel">
+        <p><strong>By hand (any OS):</strong> download the zip from the
+          <a href="https://github.com/ninepointlabs/the-terminal-list/releases/tag/v0.1.0">v0.1.0 release</a>
+          (or <a href="https://github.com/ninepointlabs/the-terminal-list/releases">all releases</a>) and unzip it so the folder is
+          <code>_forever_/Interface/AddOns/TheTerminalList</code>.</p>
+        <p>Then <code>/reload</code> and <code>/tlist</code>. Turn on player nameplates in the game's options so the crosshair has somewhere to go.</p>
+        <p>Source, issues and the in-game test checklist: <a href="https://github.com/ninepointlabs/the-terminal-list">github.com/ninepointlabs/the-terminal-list</a>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="check">
+  <div class="wrap">
+    <h2>Am I on the list?</h2>
+    <button class="btn ghost" type="button" id="amI">Run a background check</button>
+    <p id="verdict" aria-live="polite"></p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <p class="flabel">Sister addons</p>
+    <nav class="flinks" aria-label="Sister addons and links">
+      <a href="https://andricsaddon.myazerothlife.com">Andric's Addon (Priest)</a>
+      <a href="https://parzelles-addon.myazerothlife.com">Parzelle's Addon (Mage)</a>
+      <a href="https://github.com/ninepointlabs/tristans-addon">Tristan's Addon (Paladin)</a>
+      <a href="https://github.com/ninepointlabs/tazus-addon">Tazu's Addon (Shaman)</a>
+      <a href="https://github.com/ninepointlabs/forever-rogue">Forever Rogue</a>
+      <a href="https://myazerothlife.com">My Azeroth Life</a>
+    </nav>
+    <div class="legal">
+      <p>Made by Nine Point Labs. Free and open source (MIT).</p>
+      <p>The name and the dossier styling are an unofficial fan nod to Jack Carr's <em>The Terminal List</em> books and the TV series. This site and the addon have no affiliation with, and are not endorsed by, the author, the publishers or the studios behind them. All wording here is original.</p>
+      <p>The Terminal List addon is an unofficial fan project, not affiliated with or endorsed by Blizzard Entertainment. World of Warcraft and Warcraft are trademarks or registered trademarks of Blizzard Entertainment, Inc.</p>
+    </div>
+  </div>
+</footer>
+
+<div class="toast" id="toast" role="status">Copied</div>
+
+<script>
+(function () {
+  // Declassify aliases on click / Enter.
+  document.querySelectorAll(".redact").forEach(function (el) {
+    el.setAttribute("role", "button");
+    el.setAttribute("aria-label", "Redacted alias, activate to reveal");
+    function flip() {
+      el.classList.toggle("open");
+      el.setAttribute("aria-label", el.classList.contains("open") ? el.textContent : "Redacted alias, activate to reveal");
+    }
+    el.addEventListener("click", flip);
+    el.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); flip(); } });
+  });
+
+  // Copy the install command.
+  var toast = document.getElementById("toast"), t;
+  function show(msg) { toast.textContent = msg; toast.classList.add("show"); clearTimeout(t); t = setTimeout(function () { toast.classList.remove("show"); }, 1600); }
+  document.querySelectorAll("[data-copy]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var text = b.getAttribute("data-copy");
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () { show("Copied. Proceed."); }, function () { show("Copy failed. Select it by hand."); });
+      } else { show("Select it by hand."); }
+    });
+  });
+
+  // Hero readout.
+  var lines = ["Scanning nameplates…", "No hostiles of interest", "Contact: one Prospector, 40 yds", "Recommendation: keep walking", "Mana conserved", "Scanning nameplates…"];
+  var ro = document.getElementById("readout"), i = 0;
+  if (ro && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    setInterval(function () { i = (i + 1) % lines.length; ro.textContent = lines[i]; }, 2600);
+  }
+
+  // Background check.
+  var verdicts = [
+    "No record found. The List lives on one person's computer and nobody can look it up, which is the point. Behave accordingly.",
+    "Inconclusive. If you've ever mined a node out from under someone mid-fight, you already know the answer.",
+    "File not found. Keep it that way: help a stranger today.",
+    "Results sealed. But that warrior who rolled Need on the wand? Yeah. Them.",
+    "Clean. For now. The file stays open on everyone."
+  ];
+  var v = -1, out = document.getElementById("verdict");
+  document.getElementById("amI").addEventListener("click", function () {
+    v = (v + 1) % verdicts.length;
+    out.textContent = "Checking…";
+    setTimeout(function () { out.textContent = verdicts[v]; }, 650);
+  });
+})();
+</script>
+</body>
+</html>

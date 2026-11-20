@@ -10,6 +10,8 @@ It's a sibling of [Andric's Addon](https://andricsaddon.myazerothlife.com),
 [Tazu's Addon](https://github.com/ninepointlabs/tazus-addon) and
 [Forever Rogue](https://github.com/ninepointlabs/forever-rogue), and uses their window style. It isn't a class addon.
 
+> **Website:** [ttl.myazerothlife.com](https://ttl.myazerothlife.com)
+>
 > **Status:** [v0.1.0](https://github.com/ninepointlabs/the-terminal-list/releases/latest). Early in-game testing; see `STATUS.md` for the checklist.
 
 - WoW Forever only (`WOW_PROJECT_ID 18`), Interface `16001`. No Ace3; Blizzard API only. MIT.

@@ -1,5 +1,6 @@
 # The build brief stays local (it describes Tim's characters and install paths).
 BRIEF.md
+SITE-BRIEF.md
 __pycache__/
 *.pyc
 .release/
