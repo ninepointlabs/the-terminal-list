@@ -2,8 +2,15 @@
 
 **What it is:** a WoW Forever-only personal watch list for players who crossed Tim, were rude, or don't play nice, on both factions. He can add and remove people by hand (`/tlist`, right-click menus, a list window). A player who kills him in **open-world** PvP is added automatically. Listed players are marked with a **red crosshair** on nameplates and the target frame, a tooltip line, marked chat lines, and an optional once-per-session alert. The list is account-wide, so a name added on Rip shows on Andric, Parzelle, Tazu, Tristan and Ghoulsbie too. It reuses the sister addons' window, widget kit, Options style, strict-mock tests and release workflow. It isn't a class addon: no Data/ pipeline, talents, pollers or spec chrome.
 
-**Repo:** local only, `/home/tim/Projects/the-terminal-list`, branch `feature/initial-addon`. Commits use `Nine Point Labs <179739321+ninepointlabs@users.noreply.github.com>` (repo-local git config).
-- **No GitHub repo, no remote, no push, no tag, no release.** Publishing wasn't authorized. The future repo name is `ninepointlabs/the-terminal-list` (the TOC's `## X-Website` and the About link point there already).
+**Repo:** https://github.com/ninepointlabs/the-terminal-list (public, default branch `main`, topics `wow-addon` + `world-of-warcraft`), local `/home/tim/Projects/the-terminal-list`, `origin` set. Commits use `Nine Point Labs <179739321+ninepointlabs@users.noreply.github.com>` (repo-local git config).
+- **Created and released 2026-11-20 at Tim's request** ("make repo, label it addon or whatever omaforge needs to install it"). OmaForge installs GitHub addons only from a release zip with `release.json`, so that request covered the repo, the topics, and a `v0.1.0` tag and release.
+- `main` and `feature/initial-addon` point at the same commits. Tim asked for an installable addon, not a PR, as with Forever Rogue.
+- **CI:** Test passed on the first push to `main` (run 44777024780).
+- **Released:** **v0.1.0**, https://github.com/ninepointlabs/the-terminal-list/releases/tag/v0.1.0. The annotated tag points at `d19c919` on `main`. Before tagging, `omaforge clients` reported Forever 1.60.1.70959 / Interface 16001, matching both TOCs.
+  - The Release workflow (BigWigs packager) passed (run 44777118658).
+  - Assets: `TheTerminalList-v0.1.0.zip` (TOCs `## Version: v0.1.0`, Interface 16001; Core, Modules, UI, Media, LICENSE, CHANGELOG; no tests/tools/README/STATUS, checked by downloading it) and `release.json` (flavor `forever`, interface 16001).
+  - The packager's commit-list notes were replaced with a short feature summary and install steps. No autonomix-cli line, because the release ships no Linux executables.
+- **OmaForge:** `omaforge search -c forever ninepointlabs/the-terminal-list` finds `github:ninepointlabs/the-terminal-list`. Its GitHub provider resolves **v0.1.0 → `TheTerminalList-v0.1.0.zip`, compat `ok`**. Tim installs it himself with `omaforge install -c forever github:ninepointlabs/the-terminal-list`. I did **not** run `omaforge install`.
 - **Not done (not authorized):** CurseForge/Wago, GitHub Pages, DNS, email or social posts. Nothing was installed into the live WoW folder: `tools/install-dev.sh` was only run into a scratch folder. WTF/SavedVariables and screenshots weren't touched; the installed AddOns folder was only read, to learn APIs.
 - `BRIEF.md` is gitignored (as in Forever Rogue), because it describes Tim's characters and install paths.
 
@@ -52,7 +59,7 @@ Both paths are fully tested headlessly. Which one runs on Forever needs one in-g
 | Lua syntax | every `.lua` in the repo loads with `lua5.1` |
 | `tools/install-dev.sh <scratch dir>` | copies only the 2 TOCs, Core, Modules, UI, Media and LICENSE (21 files) |
 | `omaforge clients` (TUF, 2026-11-20) | Forever `1.60.1.70959`, Interface `16001`, which matches both TOCs |
-| CI | `.github/workflows/test.yml` (syntax + tests). It hasn't run: there is no remote. |
+| CI | `.github/workflows/test.yml` (syntax + tests): pass on `main` (run 44777024780) |
 
 The strict WoW mock (`tests/wow_mock.lua`, in Tazu's style) treats undefined globals as errors and loads every TOC file. The tests cover:
 - **TOCs:** identical, Interface 16001, title, author, version token, X-Website, Category PvP (not Class), IconTexture, compartment, SavedVariables. Every listed file exists; there's no `Bindings.xml`. The crosshair is a valid 64×64 32-bit TGA.
@@ -123,14 +130,16 @@ In game: `/reload`, then `/tlist`. Check the client with `/run print(GetBuildInf
 
 Before any future tag, re-run `omaforge clients` and bump `## Interface` in both TOCs if it changed.
 
-## Release workflow (set up, not used)
+## Release workflow
 
 `release.yml` is Tazu's BigWigs packager workflow: on `v*` tags, `args: -u -n "{package-name}-{project-version}"`, `pandoc: false`, `GITHUB_OAUTH`. It also has `workflow_dispatch`, as Forever Rogue added after push events failed to start runs there. `.pkgmeta` packages as `TheTerminalList` and ignores README, STATUS, BRIEF, tests, tools and docs. autonomix-cli doesn't apply: the addon ships no Linux executables.
 
-## Commits (`feature/initial-addon`)
+## Commits (`main` = `feature/initial-addon`)
 
 - `843ce2f` The Terminal List v0.1: account-wide watch list for WoW Forever
-- the STATUS commit (see `git log`)
+- `a06c500` STATUS: v0.1 delivery, decisions and defaults, combat-log caveat, in-game checklist
+- `d19c919` README: OmaForge install and release links for v0.1.0 (tagged `v0.1.0`)
+- the STATUS commit for the repo and release (see `git log`)
 
 ## Still to check in game
 
