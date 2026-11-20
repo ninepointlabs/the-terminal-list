@@ -1,0 +1,9 @@
+package-as: TheTerminalList
+
+ignore:
+  - README.md
+  - STATUS.md
+  - BRIEF.md
+  - tests
+  - tools
+  - docs

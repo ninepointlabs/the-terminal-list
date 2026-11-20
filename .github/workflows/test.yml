@@ -1,0 +1,25 @@
+name: Test
+
+# Every push to main and every PR; workflow_dispatch to run it by hand.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Lua 5.1 from Ubuntu packages; LuaJIT runs the same 5.1 code if the
+      # lua5.1 package isn't on the runner image.
+      - name: Install Lua 5.1
+        run: |
+          sudo apt-get update -q
+          if sudo apt-get install -y -q lua5.1; then echo "LUA=lua5.1" >> "$GITHUB_ENV";
+          else sudo apt-get install -y -q luajit && echo "LUA=luajit" >> "$GITHUB_ENV"; fi
+      - name: Lua syntax
+        run: for f in $(git ls-files '*.lua'); do $LUA -e "assert(loadfile('$f'))"; done
+      - name: Addon headless tests
+        run: $LUA tests/run.lua
