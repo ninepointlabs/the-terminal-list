@@ -140,6 +140,17 @@ Before any future tag, re-run `omaforge clients` and bump `## Interface` in both
 - `a06c500` STATUS: v0.1 delivery, decisions and defaults, combat-log caveat, in-game checklist
 - `d19c919` README: OmaForge install and release links for v0.1.0 (tagged `v0.1.0`)
 - the STATUS commit for the repo and release (see `git log`)
+- `b86a298` Site: GitHub Pages for ttl.myazerothlife.com
+
+## Website (2026-11-20)
+
+- **Site:** `docs/` (`index.html`, `favicon.svg`, `CNAME`), committed in `b86a298`. Single static page, no build step. `.pkgmeta` already ignores `docs`, so release zips are unaffected.
+- **Domain:** `docs/CNAME` = `ttl.myazerothlife.com`. Still to do (Admin): enable GitHub Pages from `main` / `docs` and add the Porkbun CNAME record `ttl` → `ninepointlabs.github.io`.
+- **Analytics:** GoatCounter snippet as on the MAL / Nine Point Labs sites.
+- **Content:** hero tagline and a Rules of Engagement memo (help is the default; The List is for those who forfeited it), ten invented redacted target files (all eight from the brief plus The Spectator and The Critic), the feature list from README, the combat-log caveat stated plainly (ask-popup; automatic killing-blow path not yet confirmed in game), commands, OmaForge install command, v0.1.0 release link and manual unzip path, sister-addon links (Tristan's, Tazu's and Forever Rogue link to GitHub because their custom domains didn't resolve on 2026-11-20).
+- **Rules followed:** original wording only; no book/show text, names, logos, cover art or stills; no screenshots. The crosshair is an SVG redraw of `Media/Crosshair.tga`. Footer carries the unofficial fan-nod disclaimer and the Blizzard disclaimer.
+- **Checked:** headless Chromium render at 1280 px and 390 px; no horizontal overflow at 390 px.
+- README gained a Website line. TOC `X-Website` left on GitHub. **No new tag or release; v0.1.0 untouched.**
 
 ## Still to check in game
 
