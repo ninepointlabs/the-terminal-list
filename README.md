@@ -10,7 +10,7 @@ It's a sibling of [Andric's Addon](https://andricsaddon.myazerothlife.com),
 [Tazu's Addon](https://github.com/ninepointlabs/tazus-addon) and
 [Forever Rogue](https://github.com/ninepointlabs/forever-rogue), and uses their window style. It isn't a class addon.
 
-> **Status:** v0.1, local only. No GitHub repo or release exists yet. See `STATUS.md` for the in-game checklist.
+> **Status:** [v0.1.0](https://github.com/ninepointlabs/the-terminal-list/releases/latest). Early in-game testing; see `STATUS.md` for the checklist.
 
 - WoW Forever only (`WOW_PROJECT_ID 18`), Interface `16001`. No Ace3; Blizzard API only. MIT.
 - The list is stored **only on your computer**, in the account's saved variables (`TheTerminalListDB`). Every character
@@ -18,18 +18,18 @@ It's a sibling of [Andric's Addon](https://andricsaddon.myazerothlife.com),
 
 ## Install
 
-### With OmaForge (Linux), once the repo is public
+### With OmaForge (Linux)
 
 ```sh
 omaforge install -c forever github:ninepointlabs/the-terminal-list
+omaforge update -c forever          # later versions
 ```
-
-This doesn't work yet: the GitHub repo hasn't been created.
 
 ### By hand (any OS)
 
-From a checkout, `tools/install-dev.sh "<…>/_forever_/Interface/AddOns"` copies only the files WoW needs into
-`AddOns/TheTerminalList`. Then `/reload` and `/tlist`.
+Download the zip from [GitHub Releases](https://github.com/ninepointlabs/the-terminal-list/releases) and unzip it so the
+folder is `World of Warcraft/_forever_/Interface/AddOns/TheTerminalList`. From a checkout,
+`tools/install-dev.sh <AddOns folder>` copies only the files WoW needs. Then `/reload` and `/tlist`.
 
 ## Using it
 
@@ -97,7 +97,7 @@ python3 tools/make-crosshair.py      # redraw Media/Crosshair.tga
 ```
 
 CI (`.github/workflows/test.yml`) runs a syntax check and the tests. `release.yml` packages a `v*` tag with the BigWigs
-packager. No tag has been made.
+packager (zip + `release.json` for OmaForge).
 
 ## Licence
 
