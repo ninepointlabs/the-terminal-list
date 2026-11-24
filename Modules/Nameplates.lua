@@ -1,4 +1,5 @@
--- Crosshair beside a listed player's nameplate (Tim chose the crosshair, 2026-11-20).
+-- Crosshair beside a listed player's nameplate (Tim chose the crosshair, 2026-11-20),
+-- a heart beside one of the Good Folk.
 --
 -- Uses Blizzard's own nameplates through C_NamePlate.GetNamePlateForUnit (the
 -- same route installed Forever addons take); no Plater or BetterBlizzPlates.
@@ -28,7 +29,6 @@ local function markFor(plate)
     m:SetFrameLevel((plate.GetFrameLevel and plate:GetFrameLevel() or 1) + 10)
     m.tex = m:CreateTexture(nil, "OVERLAY")
     m.tex:SetAllPoints()
-    m.tex:SetTexture(ns.CROSSHAIR)
     local uf = plate.UnitFrame
     local name = uf and (uf.name or uf.Name)
     if name then m:SetPoint("RIGHT", name, "LEFT", -2, 0) else m:SetPoint("BOTTOM", plate, "TOP", 0, 2) end
@@ -40,10 +40,13 @@ end
 function Plates.Update(unit)
     local plate = plateFor(unit)
     if not plate then return false end
-    local e = ns.db and ns.Alert.Check(unit, "nameplate")
+    local e, which
+    if ns.db then e, which = ns.Alert.Check(unit, "nameplate") end
     local show = e ~= nil and ns.DB.Settings().nameplate
     if show then
-        markFor(plate):Show()
+        local m = markFor(plate)
+        m.tex:SetTexture(which == "good" and ns.HEART or ns.CROSSHAIR)
+        m:Show()
     elseif plate.ttlMark then
         plate.ttlMark:Hide()
     end

@@ -15,6 +15,10 @@
 --      automatically. If a hostile player was my target in the last 30 s the
 --      addon asks whether to add them (setting, on by default); otherwise it
 --      explains once per session how to add someone by hand.
+--
+-- Auto-add only ever goes to The Terminal List. A killer or assist who is on
+-- the Good Folk is left where they are (no move, no kill/assist counted), with
+-- a short chat note. Nobody is ever added to the Good Folk automatically.
 local _, ns = ...
 
 local Combat = {}
@@ -200,6 +204,16 @@ local function announce(e, created, kind)
     end
 end
 
+-- A Good Folk player killed me (or helped): say so, change nothing.
+local function announceGood(info, kind)
+    local key = ns.List.ResolveKey(info.name, info.realm)
+    local g = ns.Good.Get(key)
+    local who = ns.List.Display(g or info)
+    local note = g and g.note ~= "" and (" (\"" .. ns.Escape(g.note) .. "\")") or ""
+    ns.Print(("%s %s %s, but they're on the Good Folk%s, so they weren't added to The Terminal List."):format(
+        ns.HeartIcon(), who, kind == "assist" and "hit you just before you died" or "killed you", note))
+end
+
 -- PLAYER_DEAD: give the combat log a moment to deliver the killing blow.
 function Combat.OnPlayerDead()
     C_Timer.After(0.3, function() Combat.Resolve() end)
@@ -240,12 +254,21 @@ function Combat.Resolve()
     if isDuelOpponent(info) then return "duel" end
 
     local zone = ns.List.Zone()
-    local e, created = ns.List.RecordPvP(info, "kill", zone)
-    if not e then return "unknown" end
-    announce(e, created, "kill")
-    local added = { e.key }
+    local e, created, why = ns.List.RecordPvP(info, "kill", zone)
+    local status, added, killerKey = "added", {}, nil
+    if e then
+        announce(e, created, "kill")
+        table.insert(added, e.key)
+        killerKey = e.key
+    elseif why == "good" then
+        announceGood(info, "kill")
+        status = "good"
+        killerKey = ns.List.ResolveKey(info.name, info.realm)
+    else
+        return "unknown"
+    end
     if s.addRecentDamagers then
-        local seen = { [e.key] = true }
+        local seen = { [killerKey] = true }
         local window = tonumber(s.damageWindow) or 8
         for _, h in ipairs(recent) do
             if h ~= killing and not h.env and killing.t - h.t <= window then
@@ -253,16 +276,18 @@ function Combat.Resolve()
                 local key = other and ns.List.ResolveKey(other.name, other.realm)
                 if key and not seen[key] and not isDuelOpponent(other) then
                     seen[key] = true
-                    local e2, created2 = ns.List.RecordPvP(other, "assist", zone)
+                    local e2, created2, why2 = ns.List.RecordPvP(other, "assist", zone)
                     if e2 then
                         announce(e2, created2, "assist")
                         table.insert(added, e2.key)
+                    elseif why2 == "good" then
+                        announceGood(other, "assist")
                     end
                 end
             end
         end
     end
-    return "added", added
+    return status, added
 end
 
 ----------------------------------------------------------------------------
@@ -296,7 +321,8 @@ function Combat.ConfirmPending()
     local p = Combat.pending
     Combat.pending = nil
     if not p then return nil end
-    local e, created = ns.List.RecordPvP(p.info, "kill", p.zone)
-    if e then announce(e, created, "kill") end
+    local e, created, why = ns.List.RecordPvP(p.info, "kill", p.zone)
+    if e then announce(e, created, "kill")
+    elseif why == "good" then announceGood(p.info, "kill") end
     return e
 end

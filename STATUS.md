@@ -14,6 +14,46 @@
 - **Not done (not authorized):** CurseForge/Wago, GitHub Pages, DNS, email or social posts. Nothing was installed into the live WoW folder: `tools/install-dev.sh` was only run into a scratch folder. WTF/SavedVariables and screenshots weren't touched; the installed AddOns folder was only read, to learn APIs.
 - `BRIEF.md` is gitignored (as in Forever Rogue), because it describes Tim's characters and install paths.
 
+## Good Folk list (2026-11-24, in review)
+
+Tim (2026-11-24): "a second list I can add people to, which are the good folk, and it puts a heart next to their name instead of the target icon."
+
+**Where:** branch `feature/good-folk` (worktree `/home/tim/Projects/the-terminal-list-good-folk`, off `origin/main` `3056556`), PR against `main`. **Not merged, no tag, no release, no version bump.** `docs/` and the website are untouched. Nothing installed into the live AddOns folder (`tools/install-dev.sh` only into a scratch folder: 22 files, `Media/Heart.tga` included).
+
+**What landed:**
+- **Data:** `TheTerminalListDB.good` (key `name-realm` → entry), same identity model and fields as The List minus `kills`/`assists`/`lastKill`; `source` is always `manual`. `ns.Good` (`Get`/`Add`/`Remove`/`SetNote`/`Count`) lives in `Modules/List.lua` next to `ns.List`; `List.Which(key)` returns the entry and `"list"`/`"good"`. `List.ResolveKey` and the known-realm check look at both lists.
+- **Schema 2 migration** (`Core/DB.lua`, `DB.Migrate`): a schema-1 (v0.1.0) account gets an empty `good` table and `schema = 2`; `entries`, settings, minimap, sort and filter are not touched (tested with a deep compare). Per-character DB just gets `schema = 2`. Running it again changes nothing.
+- **One list at a time:** `List.Add` (manual) moves someone off the Good Folk and `Good.Add` moves them off The List, printing "X was on The Terminal List and has been moved to the Good Folk" (or the reverse). The note carries over unless the add gives a new one; class/race/faction/last name/last seen carry over. Moving to the Good Folk drops the PvP record and says so ("Their PvP record there (2 kills, 0 assists) was not carried over").
+- **Slash:** `/tlist good [Name[-Realm]] [note]` (no name = target), `/tlist ungood [Name]` or `/tlist good remove [Name]`, `/tlist goodnote [Name] [text]` or `/tlist good note …` (no text opens the Good Folk note editor). `/tlist add`/`remove`/`note` still mean The Terminal List only; `/tlist remove` on a Good Folk name leaves them and points at `/tlist ungood`. Documented in `/tlist help`, Settings › About and › List & PvP, README.
+- **Right-click menus:** separate entries: **Add to the Good Folk** / **Edit Good Folk note** / **Remove from the Good Folk** (asks first). For someone on one list the other list's entry reads **Move to The Terminal List** / **Move to the Good Folk**.
+- **Window:** a **Good Folk** filter tab (heart rows, "Good Folk" chip, Note/Remove, "Add a good one…" and "Add my target" go to the Good Folk). All / PvP kills / Manual stay The Terminal List only. Both empty states mention `/tlist good`.
+- **Marks:** `Media/Heart.tga` (64×64 32-bit TGA, pink filled heart with dark outline and highlight) from `tools/make-heart.py`. `ns.HEART` / `ns.HeartIcon()`; `ns.Icon()` is still the crosshair. Nameplate and target-frame marks swap texture per update (a recycled plate goes heart → crosshair correctly). Tooltip: heart + "Good Folk", the note, "Added <date>"; no "On The Terminal List", kills or source. Target-mark tooltip title is "Good Folk". Chat: heart in front of their lines; their names in message text are not coloured.
+- **`Alert.Check`** returns `entry, "list"|"good"`, records last seen for both, and **alerts for The Terminal List only**. No new setting.
+- **PvP:** auto-add (killing blow, recent-damager assists, and Yes on the ask popup) only ever writes The Terminal List. `List.Add` with `source = "pvp"` on a Good Folk key returns `nil, false, "good"`; Combat prints "♥ X killed you, but they're on the Good Folk ("note"), so they weren't added to The Terminal List." No move, no kill/assist bump. `Good.Add` refuses any non-manual source. Battleground/arena/instance/duel and `autoAdd`/`addRecentDamagers` rules unchanged.
+
+**Decisions I made (Tim's to change):**
+1. Heart colour **pink** (`#ff78b5`), so it can't be confused with the red crosshair.
+2. **No** Good Folk alert setting (the brief allowed one, default off). Simpler; easy to add later.
+3. Moving someone to the Good Folk drops their kills/assists (printed in the notice). Moving back starts them at 0 kills, source `manual`.
+4. The existing Recognition toggles (nameplate, target, tooltip, chat) apply to both marks; no separate Good Folk toggles.
+5. The ask popup still appears after a death with a Good Folk hostile target (the brief covers the "Yes" case: nothing added, note printed). It could skip asking instead.
+6. `/tlist good Note …` / `/tlist good Remove …` read `note`/`remove` as subcommands, so a player literally named Note or Remove has to be added by target or right-click (or `/tlist good Note-Realm`).
+
+**Tests:** `lua5.1 tests/run.lua` → **54 passed, 0 failed** (43 before + 11 new); `luajit tests/run.lua` → 54/54; `luac5.1 -p` on every `.lua` passes. New coverage: heart TGA format and difference from the crosshair, no raid-target/skull textures; schema-1 migration (deep compare, fresh install, idempotent); `/tlist good` by target / Name / Name-Realm / note, self and bad names refused, no duplicate, re-add offers the note editor; `goodnote` / `good note` / editor dialog; `ungood` / `good remove` by name and target; moves both ways with notices and note handling, never on both lists; menus (distinct entries, Move labels, remove confirm, chat-name menu); heart on target frame, nameplate (incl. recycled plate), tooltip text, chat, no alert/sound/raid warning; PvP: Good Folk killer and assist not added/moved/counted with the note printed, Terminal List and unknown killers as before, `Resolve` returns `"good"`, nobody ever on the Good Folk with source `pvp`; ask-popup Yes on a Good Folk target; window filters, empty states, About/Recognition/help text.
+
+**In-game checklist (Good Folk):**
+1. `/tlist good` with a friendly player targeted: chat line with a pink heart; `/tlist` › Good Folk shows them.
+2. Heart (not crosshair) **beside their nameplate**, readable at plate scale.
+3. Heart on the **target frame** portrait; hovering it shows "Good Folk" and the note.
+4. **Tooltip** on mouse-over: heart + "Good Folk" + note; no "On The Terminal List", no kill count.
+5. **Chat:** heart in front of their say/whisper/channel lines; their name in someone else's message is not red.
+6. **Right-click** their portrait and their chat name: Add to the Good Folk / Edit Good Folk note / Remove from the Good Folk, and the Move entries.
+7. **Moving:** `/tlist good` on a Terminal List player prints "…was on The Terminal List and has been moved to the Good Folk"; `/tlist add` on a Good Folk player prints the reverse. The crosshair/heart swap right away.
+8. **PvP:** die to a Good Folk player in the open world (combat log or ask-popup Yes): chat says they're on the Good Folk (with the note) and they are **not** added to The Terminal List.
+9. With the alert on, seeing a Good Folk player gives **no** chat alert, raid warning or sound.
+10. Existing Terminal List players still show the **red crosshair** everywhere; an existing v0.1.0 list is intact after `/reload`.
+11. `Media/Heart.tga` loads (no green square).
+
 ## Decisions
 
 **Tim decided (2026-11-20):**
@@ -34,6 +74,7 @@
 9. *(mine)* Someone added by hand doesn't trigger the "is here" session alert for the rest of that session (you're looking at them). PvP-added killers still alert.
 10. *(mine)* Duels: a duel counts as active from `DUEL_REQUESTED` or Tim's own `StartDuel` until `DUEL_FINISHED`, plus 10 s of grace for DoTs. A request that never finishes stops counting after 5 minutes. The duel opponent is never auto-added within 60 s of the duel ending.
 11. *(mine)* Category `PvP` in the TOC; window sidebar **The List** · **Settings** (List & PvP · Recognition · About).
+12. *(2026-11-24, in review)* The Good Folk list and its heart: see **Good Folk list** above.
 
 ## Big caveat: the combat log on Forever
 
@@ -171,3 +212,4 @@ Before any future tag, re-run `omaforge clients` and bump `## Interface` in both
 10. **Forever last names:** does `UnitName(unit)` return a last name as the second value, and does `GetPlayerInfoByGUID` return the realm as `""` for your own realm? The realm/last-name split depends on this.
 11. **Crosshair texture:** the TGA loads (no green square) on nameplates, the target frame, the minimap button, the window header and the addon list icon.
 12. Window layout and scrolling with many entries, the minimap button position, Lua errors (`/console scriptErrors 1`).
+13. **Good Folk** (once the PR is merged and installed): the 11-point checklist under **Good Folk list** above.

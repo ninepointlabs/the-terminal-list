@@ -1,5 +1,8 @@
 -- Right-click menus: "Add to The Terminal List" / "Remove" / "Edit note" on
--- player portraits (target, focus, party, raid) and names in chat.
+-- player portraits (target, focus, party, raid) and names in chat, plus
+-- separate Good Folk entries ("Add to the Good Folk", "Edit Good Folk note",
+-- "Remove from the Good Folk"). For someone on one list, the other list's
+-- entry reads "Move to ..." (adding moves them).
 --
 -- Uses the client's Menu.ModifyMenu("MENU_UNIT_*") hooks, built for addons to
 -- extend (installed Forever addons use the same). Tags this client doesn't
@@ -40,18 +43,32 @@ function Menus.Build(_, root, context)
     local info = Menus.InfoFromContext(context)
     if not info then return end
     local key = ns.List.ResolveKey(info.name, info.realm)
-    local e = ns.List.Get(key)
+    local e, g = ns.List.Get(key), ns.Good.Get(key)
     if root.CreateDivider then root:CreateDivider() end
     if root.CreateTitle then root:CreateTitle(ns.TITLE) end
+    -- The Terminal List
     if e then
         root:CreateButton("Edit note", function() ns.UI.EditNote(key) end)
         root:CreateButton("Remove from The Terminal List", function() ns.UI.ConfirmRemove(key) end)
     else
-        root:CreateButton("Add to The Terminal List", function()
+        root:CreateButton(g and "Move to The Terminal List" or "Add to The Terminal List", function()
             local added = ns.List.Add(info, { source = "manual" })
             if added then
                 ns.Print(("%s %s added. Add a note?"):format(ns.Icon(), ns.List.Display(added)))
                 ns.UI.EditNote(added.key)
+            end
+        end)
+    end
+    -- The Good Folk
+    if g then
+        root:CreateButton("Edit Good Folk note", function() ns.UI.EditGoodNote(key) end)
+        root:CreateButton("Remove from the Good Folk", function() ns.UI.ConfirmRemoveGood(key) end)
+    else
+        root:CreateButton(e and "Move to the Good Folk" or "Add to the Good Folk", function()
+            local added = ns.Good.Add(info)
+            if added then
+                ns.Print(("%s %s added to the Good Folk. Add a note?"):format(ns.HeartIcon(), ns.List.Display(added)))
+                ns.UI.EditGoodNote(added.key)
             end
         end)
     end

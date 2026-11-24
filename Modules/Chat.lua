@@ -1,5 +1,6 @@
 -- Chat: a red crosshair in front of lines from a listed player, and listed
--- names inside message text coloured red.
+-- names inside message text coloured red. Lines from the Good Folk get a heart
+-- instead; their names are never coloured red.
 --
 -- The sender's clickable [Name] is built by Blizzard's chat code after
 -- filters run, so a filter can't recolour it; replacing Blizzard's name
@@ -41,10 +42,14 @@ end
 function Chat.Filter(_, event, msg, author, ...)
     if not ns.db or not ns.DB.Settings().chat then return false end
     if ns.Secret(msg, author) or type(msg) ~= "string" then return false end
-    local listed = event ~= "CHAT_MSG_SYSTEM" and authorKey(author) and ns.List.Get(authorKey(author))
+    local which
+    if event ~= "CHAT_MSG_SYSTEM" then
+        local _, w = ns.List.Which(authorKey(author))
+        which = w
+    end
     local newMsg, changed = Chat.ColorNames(msg)
-    if listed then
-        newMsg = ns.Icon(12) .. " " .. newMsg
+    if which then
+        newMsg = (which == "good" and ns.HeartIcon(12) or ns.Icon(12)) .. " " .. newMsg
         changed = true
     end
     if not changed then return false end

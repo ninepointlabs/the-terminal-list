@@ -15,12 +15,20 @@
 --   assists   times they hit me just before a PvP death without the killing blow
 --             (only with "also add recent damagers" on)
 -- A rename or realm transfer makes a new identity; the old entry stays as is.
+--
+-- The Good Folk (ns.Good, saved in db.global.good) use the same keys and the
+-- same fields minus kills/assists/lastKill; their source is always "manual".
+-- Nobody is ever added to them automatically. A player is on one list at most:
+-- adding them to one moves them off the other, with a chat notice.
 local _, ns = ...
 
 local List = {}
 ns.List = List
+local Good = {}
+ns.Good = Good
 
 local function entries() return ns.db.global.entries end
+local function goods() return ns.db.global.good end
 
 -- Classic race tokens -> faction. Anything else (new Forever races) stays nil
 -- until a unit tells us its faction.
@@ -69,23 +77,38 @@ function List.Key(name, realm)
 end
 
 function List.Get(key) return key and entries()[key] end
+function Good.Get(key) return key and goods()[key] end
+
+-- Which list a key is on: entry, "list" | "good" (nil when on neither).
+function List.Which(key)
+    if not key then return nil end
+    local e = entries()[key]
+    if e then return e, "list" end
+    local g = goods()[key]
+    if g then return g, "good" end
+    return nil
+end
+
+local function onAny(key) return entries()[key] ~= nil or goods()[key] ~= nil end
 
 local function knownRealm(r)
     if r == List.MyRealm() then return true end
-    for _, e in pairs(entries()) do
-        if e.realm == r then return true end
+    for _, t in ipairs({ entries(), goods() }) do
+        for _, e in pairs(t) do
+            if e.realm == r then return true end
+        end
     end
     return false
 end
 
--- The key a name refers to: the listed entry's key when there is one.
--- "First-X" where X isn't a realm we know is tried as First on my realm too
--- (a Forever last name can arrive joined with a dash).
+-- The key a name refers to: the listed entry's key when there is one (on
+-- either list). "First-X" where X isn't a realm we know is tried as First on
+-- my realm too (a Forever last name can arrive joined with a dash).
 function List.ResolveKey(name, realm)
     local key = List.Key(name, realm)
-    if not key or entries()[key] or knownRealm(realm) then return key end
+    if not key or onAny(key) or knownRealm(realm) then return key end
     local alt = List.Key(name, List.MyRealm())
-    if alt and entries()[alt] then return alt end
+    if alt and onAny(alt) then return alt end
     return key
 end
 
@@ -98,6 +121,12 @@ end
 function List.Count()
     local n = 0
     for _ in pairs(entries()) do n = n + 1 end
+    return n
+end
+
+function Good.Count()
+    local n = 0
+    for _ in pairs(goods()) do n = n + 1 end
     return n
 end
 
@@ -127,32 +156,54 @@ local function absorb(e, info)
     if not e.faction and info.raceToken then e.faction = List.RACE_FACTION[info.raceToken] end
 end
 
+-- A new entry; `from` is their entry on the other list when this is a move
+-- (identity facts and sightings carry over, and the note unless a new one is given).
+local function newEntry(key, info, opts, from)
+    local now = time()
+    local note = opts.note and ns.Trim(opts.note) or ""
+    local e = {
+        key = key, name = info.name, last = info.last, realm = info.realm,
+        added = now, updated = now,
+        zone = opts.zone or zoneNow(),
+        note = note,
+        source = opts.source or "manual",
+    }
+    if from then
+        for _, k in ipairs({ "last", "class", "race", "faction", "guid", "lastSeen", "seenZone" }) do
+            if e[k] == nil then e[k] = from[k] end
+        end
+        if note == "" then e.note = from.note or "" end
+    end
+    absorb(e, info)
+    return e
+end
+
 -- info: { name, realm, class?, race?, raceToken?, faction?, guid? }
 -- opts: { note?, source? ("manual"|"pvp"), zone? }
 -- Returns entry, created (false when they were already listed: nothing is duplicated).
+-- Someone on the Good Folk is moved here (with a notice) for a manual add, and
+-- never for a PvP add: that returns nil, false, "good".
 function List.Add(info, opts)
     opts = opts or {}
     local key = List.ResolveKey(info.name, info.realm)
     if not key then return nil, false end
     local list = entries()
     local e = list[key]
-    local now = time()
     if e then
         absorb(e, info)
         return e, false
     end
-    e = {
-        key = key, name = info.name, last = info.last, realm = info.realm,
-        added = now, updated = now,
-        zone = opts.zone or zoneNow(),
-        note = opts.note and ns.Trim(opts.note) or "",
-        source = opts.source or "manual",
-        kills = 0, assists = 0,
-    }
-    absorb(e, info)
+    local g = goods()[key]
+    if g and opts.source == "pvp" then return nil, false, "good" end
+    e = newEntry(key, info, opts, g)
+    e.kills, e.assists = 0, 0
+    if g then goods()[key] = nil end
     list[key] = e
     -- Just added by hand while looking at them: no "is here" alert this session.
     if e.source == "manual" and ns.Alert then ns.Alert.session[key] = true end
+    if g then
+        ns.Print(("%s %s was on the Good Folk and has been moved to The Terminal List."):format(ns.Icon(), List.Display(e)))
+    end
     ns.Fire("LIST_CHANGED", key)
     return e, true
 end
@@ -174,11 +225,57 @@ function List.SetNote(key, note)
     return e
 end
 
+-- The Good Folk. Only ever added by hand (slash, right-click, the window);
+-- source is always "manual". Someone on The List is moved here, with a notice.
+-- Returns entry, created.
+function Good.Add(info, opts)
+    opts = opts or {}
+    if opts.source and opts.source ~= "manual" then return nil, false end
+    local key = List.ResolveKey(info.name, info.realm)
+    if not key then return nil, false end
+    local list = goods()
+    local g = list[key]
+    if g then
+        absorb(g, info)
+        return g, false
+    end
+    local old = entries()[key]
+    g = newEntry(key, info, { note = opts.note, zone = opts.zone, source = "manual" }, old)
+    if old then entries()[key] = nil end
+    list[key] = g
+    if old then
+        local kills = (old.kills or 0) + (old.assists or 0)
+        ns.Print(("%s %s was on The Terminal List and has been moved to the Good Folk.%s"):format(ns.HeartIcon(), List.Display(g),
+            kills > 0 and (" Their PvP record there (%d kill%s, %d assist%s) was not carried over."):format(
+                old.kills or 0, (old.kills or 0) == 1 and "" or "s", old.assists or 0, (old.assists or 0) == 1 and "" or "s") or ""))
+    end
+    ns.Fire("LIST_CHANGED", key)
+    return g, true
+end
+
+function Good.Remove(key)
+    local g = goods()[key]
+    if not g then return nil end
+    goods()[key] = nil
+    ns.Fire("LIST_CHANGED", key)
+    return g
+end
+
+function Good.SetNote(key, note)
+    local g = goods()[key]
+    if not g then return nil end
+    g.note = ns.Trim(note)
+    g.updated = time()
+    ns.Fire("LIST_CHANGED", key)
+    return g
+end
+
 -- An open-world PvP death: add them (source pvp) or bump the counter.
 -- kind: "kill" (killing blow) or "assist" (hit me inside the damage window).
+-- Someone on the Good Folk is left alone: returns nil, false, "good".
 function List.RecordPvP(info, kind, zone)
-    local e, created = List.Add(info, { source = "pvp", zone = zone })
-    if not e then return nil end
+    local e, created, why = List.Add(info, { source = "pvp", zone = zone })
+    if not e then return nil, false, why end
     if kind == "assist" then e.assists = (e.assists or 0) + 1 else e.kills = (e.kills or 0) + 1 end
     e.updated = time()
     e.zone = zone or zoneNow() or e.zone
@@ -189,7 +286,7 @@ end
 
 -- Seen in the world: refresh last-seen and any facts the unit reveals.
 function List.Seen(key, info)
-    local e = entries()[key]
+    local e = entries()[key] or goods()[key]
     if not e then return nil end
     absorb(e, info)
     e.lastSeen = time()
@@ -272,12 +369,14 @@ end
 -- Views
 ----------------------------------------------------------------------------
 
--- Sorted, filtered entries. sort: recent | kills | name; filter: all | pvp | manual.
+-- Sorted, filtered entries. sort: recent | kills | name; filter: all | pvp |
+-- manual (The List only) or good (the Good Folk).
 function List.Query(text, sort, filter)
     text = ns.Trim(text):lower()
     local out = {}
-    for _, e in pairs(entries()) do
-        local ok = (filter == nil or filter == "all" or e.source == filter)
+    local from = filter == "good" and goods() or entries()
+    for _, e in pairs(from) do
+        local ok = (filter == nil or filter == "all" or filter == "good" or e.source == filter)
         if ok and text ~= "" then
             local hay = table.concat({ e.name or "", e.last or "", e.realm or "", e.note or "", e.zone or "", e.race or "", e.faction or "", e.class or "" }, " "):lower()
             ok = hay:find(text, 1, true) ~= nil
