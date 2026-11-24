@@ -219,7 +219,7 @@
 <section class="hero">
   <div class="wrap hero-grid">
     <div>
-      <p class="kicker">Target package // World of Warcraft: Forever // v0.1.0</p>
+      <p class="kicker">Target package // World of Warcraft: Forever // v0.1.1</p>
       <h1 class="title">The Terminal <span>List</span></h1>
       <p class="tagline">I'll help anyone. <s>Everyone.</s> Almost anyone.</p>
       <p class="lede">
@@ -444,7 +444,7 @@
 <section class="block" id="capability">
   <div class="wrap">
     <h2><span class="num">03</span>Capability</h2>
-    <p class="sub">What the addon actually does. No exaggeration; it's v0.1.0 and in early in-game testing.</p>
+    <p class="sub">What the addon actually does. No exaggeration; it's v0.1.1 and in early in-game testing.</p>
 
     <div class="caps">
       <div class="cap">
@@ -472,6 +472,11 @@
         <p><code>/tlist</code>, the minimap button or the addon compartment opens the list: name-realm, race, class, faction, note, how they were added, kills, date and zone.</p>
         <p>Search, filter by PvP or manual, sort by newest, most kills or name, edit notes, remove.</p>
       </div>
+      <div class="cap">
+        <h3>The Good Folk <small>(new in v0.1.1)</small></h3>
+        <p>A second list for the people you want to remember kindly. They get a pink <strong>heart</strong> instead of the crosshair: nameplate, target frame, tooltip and chat. <code>/tlist good Name</code>, or right-click and <em>Add to the Good Folk</em>.</p>
+        <p><strong>One list at a time:</strong> adding someone to one moves them off the other, and chat tells you. PvP never adds anyone to the Good Folk, and if one of them kills you they're left alone.</p>
+      </div>
     </div>
 
     <div class="intel">
@@ -488,6 +493,9 @@
           <tr><td><code>/tlist add [Name[-Realm]] [note]</code></td><td>Add a player; no name means your current target</td></tr>
           <tr><td><code>/tlist remove [Name[-Realm]]</code></td><td>Remove; no name means your current target</td></tr>
           <tr><td><code>/tlist note [Name[-Realm]] [text]</code></td><td>Set the reason note (no text opens an editor)</td></tr>
+          <tr><td><code>/tlist good [Name[-Realm]] [note]</code></td><td>Add to the Good Folk; no name means your current target</td></tr>
+          <tr><td><code>/tlist ungood [Name[-Realm]]</code></td><td>Remove from the Good Folk</td></tr>
+          <tr><td><code>/tlist goodnote [Name[-Realm]] [text]</code></td><td>Set a Good Folk note (no text opens an editor)</td></tr>
           <tr><td><code>/tlist search &lt;text&gt;</code></td><td>Filter by name, realm, note, zone, race or class</td></tr>
           <tr><td><code>/tlist settings</code></td><td>Settings</td></tr>
           <tr><td><code>/tlist help</code></td><td>The commands</td></tr>
@@ -508,7 +516,7 @@
       </div>
       <div class="panel">
         <p><strong>By hand (any OS):</strong> download the zip from the
-          <a href="https://github.com/ninepointlabs/the-terminal-list/releases/tag/v0.1.0">v0.1.0 release</a>
+          <a href="https://github.com/ninepointlabs/the-terminal-list/releases/tag/v0.1.1">v0.1.1 release</a>
           (or <a href="https://github.com/ninepointlabs/the-terminal-list/releases">all releases</a>) and unzip it so the folder is
           <code>_forever_/Interface/AddOns/TheTerminalList</code>.</p>
         <p>Then <code>/reload</code> and <code>/tlist</code>. Turn on player nameplates in the game's options so the crosshair has somewhere to go.</p>
