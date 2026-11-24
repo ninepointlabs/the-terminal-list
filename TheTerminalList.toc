@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: The Terminal List
-## Notes: Your watch list for WoW Forever: mark players who crossed you, were rude, or don't play nice (both factions). Add by hand or right-click; open-world PvP killers are added on their own (never battlegrounds, arenas, instances or duels). Spot them again by a red crosshair on nameplates and the target frame, a tooltip line and marked chat.
+## Notes: Your watch list for WoW Forever: mark players who crossed you, were rude, or don't play nice (both factions). Add by hand or right-click; open-world PvP killers are added on their own (never battlegrounds, arenas, instances or duels). Spot them again by a red crosshair on nameplates and the target frame, a tooltip line and marked chat. A second list, the Good Folk, marks people you like with a heart instead (never added by PvP).
 ## Author: Nine Point Labs
 ## Version: @project-version@
 ## X-Website: https://github.com/ninepointlabs/the-terminal-list

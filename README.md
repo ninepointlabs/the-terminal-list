@@ -4,6 +4,9 @@ A personal watch list for **World of Warcraft: Forever**. It keeps track of play
 just don't play nice, on **both factions**, and marks them so you recognise them next time: a **red crosshair** beside
 their nameplate and on the target frame, a line on their tooltip, and a mark on their chat lines.
 
+A second list, **the Good Folk**, is for people you want to remember kindly. They get a **pink heart** in the same
+places instead of the crosshair, and are never added by PvP or alerted on.
+
 It's a sibling of [Andric's Addon](https://andricsaddon.myazerothlife.com),
 [Parzelle's Addon](https://parzelles-addon.myazerothlife.com),
 [Tristan's Addon](https://tristans-addon.myazerothlife.com),
@@ -41,16 +44,33 @@ folder is `World of Warcraft/_forever_/Interface/AddOns/TheTerminalList`. From a
 | `/tlist add [Name[-Realm]] [note]` | add a player; no name = your current target |
 | `/tlist remove [Name[-Realm]]` | remove; no name = your current target |
 | `/tlist note [Name[-Realm]] [text]` | set the reason note (no text opens an editor) |
+| `/tlist good [Name[-Realm]] [note]` | add to the Good Folk; no name = your current target |
+| `/tlist ungood [Name[-Realm]]` | remove from the Good Folk (also `/tlist good remove`) |
+| `/tlist goodnote [Name[-Realm]] [text]` | set a Good Folk note (also `/tlist good note`; no text opens an editor) |
 | `/tlist search <text>` | open the list filtered by name, realm, note, zone, race or class |
 | `/tlist settings` | settings |
 | `/tlist help` | the commands |
 
 - **Right-click** a player's portrait (target, focus, party, raid) or their name in chat: **Add to The Terminal List**, or
-  for someone already listed, **Edit note** / **Remove from The Terminal List**.
+  for someone already listed, **Edit note** / **Remove from The Terminal List**. Separate entries handle the Good Folk:
+  **Add to the Good Folk**, **Edit Good Folk note**, **Remove from the Good Folk**. For someone on one list, the other
+  list's entry reads **Move to …**.
 - The **window** (`/tlist`, the minimap button or the addon compartment) lists everyone with name-realm, race, class,
   faction, note, how they were added (manual or PvP kill), kill count, date and zone. You can search, filter by
-  PvP/manual, sort (newest, most kills, name), edit notes and remove people there.
+  PvP/manual, sort (newest, most kills, name), edit notes and remove people there. The **Good Folk** filter shows the
+  second list; All, PvP kills and Manual only ever show The Terminal List.
 - Adding someone who's already listed never makes a second row; you're offered the note editor instead.
+
+### The Good Folk
+
+- A separate, account-wide list with the same identity rules (Name-Realm, optional last name) and optional notes.
+- **One list at a time:** adding someone to the Good Folk takes them off The Terminal List, and the reverse. Chat says
+  so ("… was on The Terminal List and has been moved to the Good Folk"). Their note comes along unless you give a new
+  one; their kill count doesn't.
+- **Marks:** a pink heart beside the nameplate, on the target frame and in front of their chat lines; the tooltip says
+  "Good Folk" and shows the note. Their name is never painted red, and the "is here" alert never fires for them.
+- **Never automatic:** nobody is added to the Good Folk by the addon. If one of the Good Folk kills you (or helps), they
+  aren't added to The Terminal List or counted; chat notes that they're on the Good Folk.
 
 ### Open-world PvP deaths
 
@@ -96,6 +116,7 @@ No keybinds, macros or `/click`.
 ```sh
 lua5.1 tests/run.lua                 # headless tests against a strict WoW mock
 python3 tools/make-crosshair.py      # redraw Media/Crosshair.tga
+python3 tools/make-heart.py          # redraw Media/Heart.tga (the Good Folk mark)
 ```
 
 CI (`.github/workflows/test.yml`) runs a syntax check and the tests. `release.yml` packages a `v*` tag with the BigWigs

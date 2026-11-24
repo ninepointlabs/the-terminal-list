@@ -99,7 +99,8 @@ local function isMe(name, realm)
 end
 
 -- "Name[-Realm]" -> info, or the current target when text is empty.
-local function who(text)
+-- hint: what to type instead when there's no target.
+local function who(text, hint)
     if text and text ~= "" then
         local name, realm, last = ns.List.Parse(text)
         if not name then return nil, "\"" .. ns.Escape(text) .. "\" doesn't look like a character name. Use Name or Name-Realm." end
@@ -109,7 +110,7 @@ local function who(text)
         return { name = name, realm = realm, last = last }
     end
     local _, info = ns.List.KeyForUnit("target")
-    if not info then return nil, "Target another player, or give a name: /tlist add Name[-Realm] [note]" end
+    if not info then return nil, "Target another player, or give a name: " .. (hint or "/tlist add Name[-Realm] [note]") end
     return info
 end
 
@@ -138,6 +139,7 @@ function Cmd.Remove(rest)
     local key = ns.List.ResolveKey(info.name, info.realm)
     local e = ns.List.Remove(key)
     if e then ns.Print(ns.List.Display(e) .. " removed from the list.")
+    elseif ns.Good.Get(key) then ns.Print(info.name .. " isn't on the list; they're one of the Good Folk (/tlist ungood " .. info.name .. ").")
     else ns.Print(info.name .. " isn't on the list.") end
     return e
 end
@@ -164,11 +166,73 @@ function Cmd.Note(rest)
     return e
 end
 
+-- The Good Folk ------------------------------------------------------------
+
+function Cmd.GoodAdd(rest)
+    local first, note = (rest or ""):match("^(%S*)%s*(.-)$")
+    local info, err = who(first, "/tlist good Name[-Realm] [note]")
+    if not info then ns.Print(err) return nil end
+    local g, created = ns.Good.Add(info, { note = note ~= "" and note or nil })
+    if not g then return nil end
+    if created then
+        ns.Print(("%s %s added to the Good Folk%s."):format(ns.HeartIcon(), ns.List.Display(g), g.note ~= "" and (": \"" .. ns.Escape(g.note) .. "\"") or ""))
+    elseif note ~= "" then
+        ns.Print(("%s is already one of the Good Folk. Update the note?"):format(ns.List.Display(g)))
+        ns.UI.EditGoodNote(g.key, note)
+    else
+        ns.Print(("%s is already one of the Good Folk. /tlist goodnote %s <text> changes the note."):format(ns.List.Display(g), ns.List.Display(g)))
+    end
+    return g, created
+end
+
+function Cmd.GoodRemove(rest)
+    local info, err = who(ns.Trim(rest), "/tlist ungood Name[-Realm]")
+    if not info then ns.Print(err) return nil end
+    local key = ns.List.ResolveKey(info.name, info.realm)
+    local g = ns.Good.Remove(key)
+    if g then ns.Print(ns.List.Display(g) .. " removed from the Good Folk.")
+    else ns.Print(info.name .. " isn't one of the Good Folk.") end
+    return g
+end
+
+function Cmd.GoodNote(rest)
+    rest = ns.Trim(rest)
+    local first, text = rest:match("^(%S*)%s*(.-)$")
+    local key = first ~= "" and ns.List.KeyFor(first)
+    if not (key and ns.Good.Get(key)) then
+        key = ns.List.KeyForUnit("target")
+        text = rest
+        if not (key and ns.Good.Get(key)) then
+            ns.Print("Not one of the Good Folk. Use /tlist goodnote Name[-Realm] <text>, or target one of them.")
+            return nil
+        end
+    end
+    if text == "" then
+        ns.UI.EditGoodNote(key)
+        return ns.Good.Get(key)
+    end
+    local g = ns.Good.SetNote(key, text)
+    ns.Print(("Good Folk note for %s: \"%s\""):format(ns.List.Display(g), ns.Escape(g.note)))
+    return g
+end
+
+-- /tlist good [Name] [note] · /tlist good remove [Name] · /tlist good note [Name] [text]
+function Cmd.Good(rest)
+    local sub, more = (rest or ""):match("^(%S*)%s*(.-)$")
+    sub = sub:lower()
+    if sub == "remove" or sub == "rm" or sub == "del" or sub == "delete" then return Cmd.GoodRemove(more) end
+    if sub == "note" then return Cmd.GoodNote(more) end
+    return Cmd.GoodAdd(rest)
+end
+
 function Cmd.Help()
     ns.Print("/tlist  open or close the window")
     ns.Print("/tlist add [Name[-Realm]] [note]  add (no name: your target)")
     ns.Print("/tlist remove [Name[-Realm]]  remove (no name: your target)")
     ns.Print("/tlist note [Name[-Realm]] [text]  set the reason note")
+    ns.Print(ns.HeartIcon() .. " /tlist good [Name[-Realm]] [note]  add to the Good Folk (no name: your target)")
+    ns.Print("/tlist ungood [Name[-Realm]]  remove from the Good Folk (also /tlist good remove)")
+    ns.Print("/tlist goodnote [Name[-Realm]] [text]  Good Folk note (also /tlist good note)")
     ns.Print("/tlist search <text> · /tlist settings · /tlist help")
 end
 
@@ -189,6 +253,12 @@ function ns.Slash(msg)
         return Cmd.Remove(rest)
     elseif cmd == "note" then
         return Cmd.Note(rest)
+    elseif cmd == "good" then
+        return Cmd.Good(rest)
+    elseif cmd == "ungood" then
+        return Cmd.GoodRemove(rest)
+    elseif cmd == "goodnote" then
+        return Cmd.GoodNote(rest)
     elseif cmd == "search" or cmd == "find" then
         ns.UI.SetFilter(rest)
         ns.UI.Open("list")

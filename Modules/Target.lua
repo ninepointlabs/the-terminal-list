@@ -1,4 +1,5 @@
--- A small crosshair on the target frame's portrait when the target is listed.
+-- A small crosshair on the target frame's portrait when the target is listed,
+-- a heart when they're one of the Good Folk.
 local _, ns = ...
 
 local Target = {}
@@ -27,8 +28,12 @@ local function build()
         local e = self.entry
         if not e then return end
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(ns.TITLE, ns.MARK_COLOR[1], ns.MARK_COLOR[2], ns.MARK_COLOR[3])
-        ns.Tooltip.AddEntryLines(GameTooltip, e)
+        if self.which == "good" then
+            GameTooltip:SetText("Good Folk", ns.GOOD_COLOR[1], ns.GOOD_COLOR[2], ns.GOOD_COLOR[3])
+        else
+            GameTooltip:SetText(ns.TITLE, ns.MARK_COLOR[1], ns.MARK_COLOR[2], ns.MARK_COLOR[3])
+        end
+        ns.Tooltip.AddEntryLines(GameTooltip, e, self.which)
         GameTooltip:Show()
     end)
     m:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -39,10 +44,12 @@ end
 
 function Target.Update()
     local m = build()
-    local e = ns.db and ns.Alert.Check("target", "target")
+    local e, which
+    if ns.db then e, which = ns.Alert.Check("target", "target") end
     local show = e ~= nil and ns.DB.Settings().target
     if m then
-        m.entry = e
+        m.entry, m.which = e, which
+        m.tex:SetTexture(which == "good" and ns.HEART or ns.CROSSHAIR)
         m:SetShown(show and true or false)
     end
     return show

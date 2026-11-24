@@ -1,10 +1,19 @@
 -- A tooltip line on a listed player: crosshair, note, kill count, how added.
+-- The Good Folk get a heart, "Good Folk" and their note, nothing about PvP.
 local _, ns = ...
 
 local Tip = {}
 ns.Tooltip = Tip
 
-function Tip.AddEntryLines(tt, e)
+-- which: "list" (default) or "good".
+function Tip.AddEntryLines(tt, e, which)
+    if which == "good" then
+        local c = ns.GOOD_COLOR
+        tt:AddLine(ns.HeartIcon(14) .. " Good Folk", c[1], c[2], c[3])
+        if e.note and e.note ~= "" then tt:AddLine("\"" .. ns.Escape(e.note) .. "\"", 1, 1, 1, true) end
+        tt:AddLine("Added " .. ns.List.DateText(e.added), 0.75, 0.75, 0.8, true)
+        return
+    end
     local r, g, b = ns.MARK_COLOR[1], ns.MARK_COLOR[2], ns.MARK_COLOR[3]
     tt:AddLine(ns.Icon(14) .. " On The Terminal List", r, g, b)
     if e.note and e.note ~= "" then tt:AddLine("\"" .. ns.Escape(e.note) .. "\"", 1, 1, 1, true) end
@@ -21,9 +30,9 @@ function Tip.OnUnit(tt)
     if not tt or not tt.GetUnit then return false end
     local ok, _, unit = pcall(tt.GetUnit, tt)
     if not ok or not unit or ns.Secret(unit) then return false end
-    local e = ns.Alert.Check(unit, "mouseover")
+    local e, which = ns.Alert.Check(unit, "mouseover")
     if not e then return false end
-    Tip.AddEntryLines(tt, e)
+    Tip.AddEntryLines(tt, e, which)
     if tt.Show then tt:Show() end
     return true
 end

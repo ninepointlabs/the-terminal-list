@@ -24,6 +24,16 @@ function ns.Icon(size)
     return ("|T%s:%d:%d:0:0|t"):format(ns.CROSSHAIR, size, size)
 end
 
+-- The Good Folk mark (Tim, 2026-11-24: "a heart next to their name instead of
+-- the target icon"). Media/Heart.tga is drawn by tools/make-heart.py.
+ns.HEART = ns.MEDIA .. "Heart"
+ns.GOOD_COLOR = { 1.0, 0.47, 0.71 }
+
+function ns.HeartIcon(size)
+    size = size or 14
+    return ("|T%s:%d:%d:0:0|t"):format(ns.HEART, size, size)
+end
+
 local listeners = {}
 function ns.On(event, fn)
     listeners[event] = listeners[event] or {}

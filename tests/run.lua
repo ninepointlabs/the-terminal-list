@@ -818,5 +818,427 @@ test("no macros, keybinds or /click anywhere", function()
     end
 end)
 
+----------------------------------------------------------------------------
+-- The Good Folk (second list, heart mark, never auto-added)
+----------------------------------------------------------------------------
+local function goodKey(name) return name:lower() .. "-camwowus2realm1pve" end
+local function noneOnBoth()
+    for k in pairs(TheTerminalListDB.good) do
+        if TheTerminalListDB.entries[k] then error(k .. " is on both lists", 2) end
+    end
+end
+
+test("heart texture: 64x64 32-bit TGA, not the crosshair, no raid-target art", function()
+    local d = io.open("Media/Heart.tga", "rb"):read("*a")
+    eq(d:byte(3), 2, "uncompressed true colour")
+    eq(d:byte(13) + d:byte(14) * 256, 64, "width")
+    eq(d:byte(15) + d:byte(16) * 256, 64, "height")
+    eq(d:byte(17), 32, "bpp")
+    eq(#d, 18 + 64 * 64 * 4, "size")
+    truthy(d ~= io.open("Media/Crosshair.tga", "rb"):read("*a"), "a different image from the crosshair")
+    truthy(io.open("tools/make-heart.py"), "generator committed")
+    truthy(ns.HEART:find("Media\\Heart", 1, true), "heart path")
+    truthy(ns.HEART ~= ns.CROSSHAIR)
+    truthy(ns.HeartIcon(12):find(ns.HEART, 1, true) and not ns.HeartIcon(12):find(ns.CROSSHAIR, 1, true), "HeartIcon is the heart")
+    truthy(ns.Icon(12):find(ns.CROSSHAIR, 1, true), "Icon is still the crosshair")
+    for _, f in ipairs(tocFiles("TheTerminalList.toc")) do
+        local s = io.open(f):read("*a")
+        for _, bad in ipairs({ "RaidTarget", "TargetingFrame", "UI-Raid", "skull" }) do
+            truthy(not s:find(bad, 1, true), f .. " uses " .. bad)
+        end
+    end
+end)
+
+test("migration: schema 1 saved variables keep The List and every setting; Good Folk starts empty", function()
+    local old = {
+        schema = 1,
+        entries = {
+            ["meanie-camwowus2realm1pve"] = { key = "meanie-camwowus2realm1pve", name = "Meanie", realm = "CAMWOWUS2Realm1PvE",
+                added = 1700000000, updated = 1700000100, note = "camped me", source = "pvp", kills = 3, assists = 1, class = "MAGE" },
+            ["rude-otherrealm"] = { key = "rude-otherrealm", name = "Rude", realm = "OtherRealm", added = 1700000200,
+                updated = 1700000200, note = "", source = "manual", kills = 0, assists = 0 },
+        },
+        settings = { autoAdd = false, addRecentDamagers = true, damageWindow = 12, nameplate = false, alert = true, alertSound = false,
+            target = true, tooltip = false, chat = true, askWhenUnknown = false, debug = false },
+        minimap = { angle = 42, hide = true },
+        sort = "kills", filter = "pvp",
+    }
+    local function copy(t)
+        if type(t) ~= "table" then return t end
+        local o = {} for k, v in pairs(t) do o[k] = copy(v) end return o
+    end
+    local function same(a, b, path)
+        if type(a) ~= type(b) then error(path .. ": " .. tostring(a) .. " vs " .. tostring(b)) end
+        if type(a) ~= "table" then if a ~= b then error(path .. ": " .. tostring(a) .. " vs " .. tostring(b)) end return end
+        for k, v in pairs(a) do same(v, b[k], path .. "." .. tostring(k)) end
+        for k in pairs(b) do if a[k] == nil then error(path .. "." .. tostring(k) .. " added") end end
+    end
+    local before = copy(old)
+    local acc, char = ns.DB.Init(old, { schema = 1, window = { tab = "settings" } })
+    same(acc.entries, before.entries, "entries")
+    for k, v in pairs(before.settings) do eq(acc.settings[k], v, "setting " .. k) end
+    same(acc.minimap, before.minimap, "minimap")
+    eq(acc.sort, "kills"); eq(acc.filter, "pvp")
+    eq(type(acc.good), "table", "good table created")
+    eq(next(acc.good), nil, "Good Folk empty")
+    eq(acc.schema, 2, "schema written"); eq(ns.DB.SCHEMA, 2)
+    eq(char.schema, 2); eq(char.window.tab, "settings", "window state kept")
+    eq(ns.List.Count(), 2); eq(ns.Good.Count(), 0)
+    eq(ns.List.Get("meanie-camwowus2realm1pve").kills, 3)
+    -- Running Init again changes nothing.
+    local again = copy(acc)
+    same(ns.DB.Init(acc, char), again, "second login")
+    -- Fresh install: schema 2 with an empty Good Folk list.
+    local fresh = ns.DB.Init(nil, nil)
+    eq(fresh.schema, 2); eq(next(fresh.good), nil); eq(next(fresh.entries), nil)
+    -- Back to the test session's saved variables.
+    TheTerminalListDB, TheTerminalListCharDB = ns.DB.Init(TheTerminalListDB, TheTerminalListCharDB)
+    eq(TheTerminalListDB.schema, 2)
+    eq(type(TheTerminalListDB.good), "table")
+end)
+
+test("/tlist good: add by target, by Name and Name-Realm, with note; self and bad names refused", function()
+    S.units.target = { guid = "Player-1-00006001", name = "Kindsoul", class = "MAGE", race = "Gnome", raceToken = "Gnome", faction = "Alliance" }
+    M.printed = {}
+    local listBefore = ns.List.Count()
+    ns.Slash("good")
+    local g = ns.Good.Get(goodKey("Kindsoul"))
+    truthy(g, "added by target")
+    eq(g.source, "manual"); eq(g.class, "MAGE"); eq(g.faction, "Alliance"); eq(g.kills, nil, "no kill counter")
+    eq(ns.List.Get(goodKey("Kindsoul")), nil, "not on The List")
+    eq(ns.List.Count(), listBefore, "The List unchanged")
+    truthy(printed("Kindsoul added to the Good Folk"), "confirmation")
+    truthy(printed(ns.HEART), "with the heart")
+    ns.Slash("good Healbot rezzed me in Duskwood")
+    eq(ns.Good.Get(goodKey("Healbot")).note, "rezzed me in Duskwood", "by name with note")
+    ns.Slash("good Pal-OtherRealm")
+    truthy(ns.Good.Get("pal-otherrealm"), "Name-Realm")
+    eq(ns.List.Display(ns.Good.Get("pal-otherrealm")), "Pal-OtherRealm")
+    local n = ns.Good.Count()
+    M.printed = {}
+    ns.Slash("good Rip")
+    truthy(printed("That's you."), "self refused")
+    ns.Slash("good 1337")
+    truthy(printed("doesn't look like a character name"), "bad name refused")
+    ns.Slash("good Healbot")
+    truthy(printed("already one of the Good Folk"), "no duplicate")
+    eq(ns.Good.Count(), n)
+    M.popups = {}
+    ns.Slash("good Healbot also bought me a drink")
+    eq(lastPopup().which, "THETERMINALLIST_GOOD_NOTE", "re-add with a note offers the Good Folk note editor")
+    eq(lastPopup().data.suggest, "also bought me a drink")
+    S.units.target = nil
+    M.printed = {}
+    ns.Slash("good")
+    truthy(printed("/tlist good Name"), "no target: says how")
+    noneOnBoth()
+end)
+
+test("/tlist goodnote and /tlist good note; empty text opens the editor", function()
+    ns.Slash("goodnote Pal-OtherRealm always shares quests")
+    eq(ns.Good.Get("pal-otherrealm").note, "always shares quests")
+    ns.Slash("good note Healbot best healer around")
+    eq(ns.Good.Get(goodKey("Healbot")).note, "best healer around")
+    S.units.target = { guid = "Player-1-00006001", name = "Kindsoul", hostile = false }
+    ns.Slash("goodnote gave me 10 silver")
+    eq(ns.Good.Get(goodKey("Kindsoul")).note, "gave me 10 silver", "whole text for the targeted Good Folk")
+    M.popups = {}
+    ns.Slash("goodnote Healbot")
+    eq(lastPopup().which, "THETERMINALLIST_GOOD_NOTE")
+    StaticPopupDialogs.THETERMINALLIST_GOOD_NOTE.OnAccept({ editBox = (function() local eb = M.newObject("EditBox") eb:SetText("saved via dialog") return eb end)() }, lastPopup().data)
+    eq(ns.Good.Get(goodKey("Healbot")).note, "saved via dialog")
+    S.units.target = nil
+    M.printed = {}
+    ns.Slash("goodnote Gankalot hi")
+    truthy(printed("Not one of the Good Folk"), "a Terminal List player isn't given a Good Folk note")
+    eq(ns.List.Get("gankalot-camwowus2realm1pve").note ~= "hi", true)
+    -- /tlist note stays The List only.
+    M.printed = {}
+    ns.Slash("note Healbot hello")
+    truthy(printed("Not on the list"), "/tlist note ignores the Good Folk")
+end)
+
+test("/tlist ungood and /tlist good remove (by name and target)", function()
+    ns.Slash("good Tempfriend")
+    ns.Slash("ungood tempfriend")
+    eq(ns.Good.Get(goodKey("Tempfriend")), nil, "ungood by name, any case")
+    ns.Slash("good Tempfriend")
+    ns.Slash("good remove Tempfriend")
+    eq(ns.Good.Get(goodKey("Tempfriend")), nil, "good remove")
+    S.units.target = { guid = "Player-1-00006002", name = "Tempfriend" }
+    ns.Slash("good")
+    truthy(ns.Good.Get(goodKey("Tempfriend")))
+    ns.Slash("ungood")
+    eq(ns.Good.Get(goodKey("Tempfriend")), nil, "ungood the target")
+    M.printed = {}
+    ns.Slash("ungood Nobodyatall")
+    truthy(printed("isn't one of the Good Folk"))
+    -- /tlist remove on a Good Folk name leaves them alone and points at ungood.
+    M.printed = {}
+    ns.Slash("remove Healbot")
+    truthy(ns.Good.Get(goodKey("Healbot")), "still Good Folk")
+    truthy(printed("/tlist ungood Healbot"), "hint")
+    S.units.target = nil
+end)
+
+test("one list at a time: adding to one moves them off the other, with a notice", function()
+    -- The List -> Good Folk, keeping the note.
+    ns.Slash("add Turncoat stole my node")
+    ns.List.Get(goodKey("Turncoat")).kills = 2
+    M.printed = {}
+    ns.Slash("good Turncoat")
+    local g = ns.Good.Get(goodKey("Turncoat"))
+    truthy(g, "on the Good Folk")
+    eq(ns.List.Get(goodKey("Turncoat")), nil, "off The List")
+    eq(g.note, "stole my node", "note kept")
+    eq(g.kills, nil, "no PvP record on the Good Folk")
+    truthy(printed("Turncoat was on The Terminal List and has been moved to the Good Folk"), "notice")
+    truthy(printed("2 kills"), "says what wasn't carried over")
+    noneOnBoth()
+    -- Good Folk -> The List with a new note.
+    M.printed = {}
+    ns.Slash("add Turncoat betrayed me after all")
+    local e = ns.List.Get(goodKey("Turncoat"))
+    truthy(e, "back on The List")
+    eq(ns.Good.Get(goodKey("Turncoat")), nil, "off the Good Folk")
+    eq(e.note, "betrayed me after all", "a new note replaces the old one")
+    eq(e.source, "manual"); eq(e.kills, 0)
+    truthy(printed("Turncoat was on the Good Folk and has been moved to The Terminal List"), "notice")
+    noneOnBoth()
+    -- Data layer: the Get lookups never agree.
+    ns.Good.Add({ name = "Turncoat", realm = "CAMWOWUS2Realm1PvE" })
+    truthy(ns.Good.Get(goodKey("Turncoat")) and not ns.List.Get(goodKey("Turncoat")))
+    ns.List.Add({ name = "Turncoat", realm = "CAMWOWUS2Realm1PvE" }, { source = "manual" })
+    truthy(ns.List.Get(goodKey("Turncoat")) and not ns.Good.Get(goodKey("Turncoat")))
+    eq(ns.List.Get(goodKey("Turncoat")).note, "betrayed me after all", "note carried both ways")
+    -- Nothing can make a Good Folk entry with source pvp.
+    eq(ns.Good.Add({ name = "Pvpfriend", realm = "CAMWOWUS2Realm1PvE" }, { source = "pvp" }), nil, "Good.Add refuses source pvp")
+    ns.List.Remove(goodKey("Turncoat"))
+    noneOnBoth()
+end)
+
+test("right-click menu: separate Good Folk entries, reflecting the player's list", function()
+    S.units.target = { guid = "Player-1-00006003", name = "Menufriend", class = "MAGE", hostile = false }
+    local root = M.MenuRoot()
+    M.menus.MENU_UNIT_TARGET(nil, root, { unit = "target" })
+    truthy(root:Button("Add to The Terminal List"), "Terminal List add")
+    truthy(root:Button("Add to the Good Folk"), "separate Good Folk add")
+    M.popups = {}
+    root:Button("Add to the Good Folk").fn()
+    truthy(ns.Good.Get(goodKey("Menufriend")), "added from the menu")
+    eq(ns.List.Get(goodKey("Menufriend")), nil)
+    eq(lastPopup().which, "THETERMINALLIST_GOOD_NOTE", "asks for a Good Folk note")
+    root = M.MenuRoot()
+    M.menus.MENU_UNIT_TARGET(nil, root, { unit = "target" })
+    truthy(root:Button("Edit Good Folk note"), "edit Good Folk note")
+    truthy(root:Button("Remove from the Good Folk"), "remove from Good Folk")
+    truthy(root:Button("Move to The Terminal List"), "Terminal List entry reads Move")
+    eq(root:Button("Add to The Terminal List"), nil)
+    eq(root:Button("Add to the Good Folk"), nil)
+    eq(root:Button("Edit note"), nil, "no Terminal List note for a Good Folk player")
+    -- Move them over from the menu, then back.
+    M.printed = {}
+    root:Button("Move to The Terminal List").fn()
+    truthy(ns.List.Get(goodKey("Menufriend")) and not ns.Good.Get(goodKey("Menufriend")), "moved to The List")
+    truthy(printed("has been moved to The Terminal List"))
+    root = M.MenuRoot()
+    M.menus.MENU_UNIT_TARGET(nil, root, { unit = "target" })
+    truthy(root:Button("Edit note") and root:Button("Remove from The Terminal List"), "Terminal List items")
+    truthy(root:Button("Move to the Good Folk"), "Good Folk entry reads Move")
+    root:Button("Move to the Good Folk").fn()
+    truthy(ns.Good.Get(goodKey("Menufriend")) and not ns.List.Get(goodKey("Menufriend")), "moved back")
+    -- Remove asks first.
+    root = M.MenuRoot()
+    M.menus.MENU_UNIT_TARGET(nil, root, { unit = "target" })
+    M.popups = {}
+    root:Button("Remove from the Good Folk").fn()
+    eq(lastPopup().which, "THETERMINALLIST_GOOD_REMOVE")
+    StaticPopupDialogs.THETERMINALLIST_GOOD_REMOVE.OnAccept(nil, lastPopup().data)
+    eq(ns.Good.Get(goodKey("Menufriend")), nil, "removed")
+    -- Chat-name menu works too.
+    root = M.MenuRoot()
+    M.menus.MENU_UNIT_FRIEND(nil, root, { name = "Chatpal", server = "OtherRealm" })
+    root:Button("Add to the Good Folk").fn()
+    truthy(ns.Good.Get("chatpal-otherrealm"))
+    S.units.target = nil
+    noneOnBoth()
+end)
+
+test("marks: heart (not crosshair) on target frame, nameplate, tooltip and chat; no alert", function()
+    ns.DB.Settings().alert = true
+    ns.Alert.session = {}
+    M.printed, M.sounds, M.raidNotice = {}, {}, nil
+    -- Target frame.
+    S.units.target = { guid = "Player-1-00006001", name = "Kindsoul", hostile = false }
+    M.Fire("PLAYER_TARGET_CHANGED")
+    local mark = ns.Target.Mark()
+    eq(mark:IsShown(), true, "shown for a Good Folk target")
+    eq(mark.tex.__texture, ns.HEART, "heart on the target frame")
+    eq(mark.which, "good")
+    -- Target frame tooltip.
+    GameTooltip.__lines = {}
+    mark.__scripts.OnEnter(mark)
+    truthy(GameTooltip.__text == "Good Folk", "target mark tooltip title")
+    -- A Terminal List target swaps back to the crosshair.
+    S.units.target = { guid = "Player-1-0000BEEF", name = "Gankalot", hostile = true }
+    M.Fire("PLAYER_TARGET_CHANGED")
+    eq(mark.tex.__texture, ns.CROSSHAIR, "crosshair for The List")
+    -- Nameplates: same plate token, heart then crosshair.
+    S.units.nameplate4 = { guid = "Player-1-00006001", name = "Kindsoul" }
+    local p4 = M.AddPlate("nameplate4")
+    M.Fire("NAME_PLATE_UNIT_ADDED", "nameplate4")
+    truthy(p4.ttlMark and p4.ttlMark:IsShown(), "Good Folk plate marked")
+    eq(p4.ttlMark.tex.__texture, ns.HEART, "heart on the nameplate")
+    truthy(ns.Good.Get(goodKey("Kindsoul")).lastSeen, "last seen recorded")
+    S.units.nameplate4 = { guid = "Player-1-00000001", name = "Killer", hostile = true }
+    M.Fire("NAME_PLATE_UNIT_ADDED", "nameplate4")
+    eq(p4.ttlMark.tex.__texture, ns.CROSSHAIR, "recycled plate shows the crosshair for The List")
+    M.plates, S.units.nameplate4 = {}, nil
+    -- Tooltip.
+    S.units.mouseover = { guid = "Player-1-00006001", name = "Kindsoul" }
+    GameTooltip.__lines = {}
+    GameTooltip.GetUnit = function() return "Kindsoul", "mouseover" end
+    M.tooltipHooks[2](GameTooltip)
+    local lines = table.concat(GameTooltip.__lines, "\n")
+    truthy(lines:find("Good Folk", 1, true), "says Good Folk: " .. lines)
+    truthy(lines:find("gave me 10 silver", 1, true), "with the note")
+    truthy(lines:find(ns.HEART, 1, true), "heart")
+    truthy(not lines:find("Terminal List", 1, true), "not 'On The Terminal List'")
+    truthy(not lines:find(ns.CROSSHAIR, 1, true), "no crosshair")
+    truthy(not lines:find("Killed you", 1, true) and not lines:find("PvP kill", 1, true) and not lines:find("Manual", 1, true), "no PvP lines")
+    -- Chat: heart in front, name never painted red.
+    local filter = M.chatFilters.CHAT_MSG_SAY[1]
+    local _, msg = filter(nil, "CHAT_MSG_SAY", "hi friend", "Kindsoul-CAMWOWUS2Realm1PvE")
+    truthy(msg:find(ns.HEART, 1, true), "heart in chat")
+    truthy(not msg:find(ns.CROSSHAIR, 1, true), "no crosshair in chat")
+    eq(select("#", filter(nil, "CHAT_MSG_SAY", "kindsoul is great", "Somebody")), 1, "Good Folk name in text not recoloured")
+    local _, msg2 = filter(nil, "CHAT_MSG_SAY", "lol", "Killer")
+    truthy(msg2:find(ns.CROSSHAIR, 1, true) and not msg2:find(ns.HEART, 1, true), "The List still gets the crosshair")
+    -- No alert for the Good Folk (Gankalot/Killer were seen above; reset and look at a friend only).
+    ns.Alert.session, M.printed, M.sounds, M.raidNotice = {}, {}, {}, nil
+    S.units.target = { guid = "Player-1-00006001", name = "Kindsoul" }
+    M.Fire("PLAYER_TARGET_CHANGED")
+    M.Fire("UPDATE_MOUSEOVER_UNIT")
+    truthy(not printed("is here"), "no 'is here' for the Good Folk")
+    eq(#M.sounds, 0, "no sound"); eq(M.raidNotice, nil, "no raid warning")
+    ns.DB.Settings().alert = false
+    S.units.target, S.units.mouseover = nil, nil
+end)
+
+test("PvP auto-add: Good Folk killers and assists are left alone; others added as before", function()
+    rawset(_G, "CombatLogGetCurrentEventInfo", function() return unpack(cleu) end)
+    player("Player-1-00006001", "Kindsoul", nil, "MAGE", "Gnome")
+    player("Player-1-00006010", "Strangerkill", nil, "WARRIOR", "Orc")
+    local goodBefore, listBefore = ns.Good.Count(), ns.List.Count()
+    local kills = ns.List.Get("killer-camwowus2realm1pve").kills
+    -- A Good Folk killer.
+    M.printed = {}
+    S.time = S.time + 60
+    spell("Player-1-00006001", "Kindsoul", 40)
+    die()
+    eq(ns.List.Get(goodKey("Kindsoul")), nil, "not added to The List")
+    truthy(ns.Good.Get(goodKey("Kindsoul")), "still Good Folk (not moved)")
+    eq(ns.Good.Get(goodKey("Kindsoul")).kills, nil, "no kill counted")
+    truthy(printed("Kindsoul killed you, but they're on the Good Folk (\"gave me 10 silver\"), so they weren't added to The Terminal List."), "note printed")
+    eq(ns.List.Count(), listBefore)
+    -- A Terminal List killer still counts; an unknown killer is still added.
+    spell("Player-1-00000001", "Killer", 20)
+    die()
+    eq(ns.List.Get("killer-camwowus2realm1pve").kills, kills + 1, "Terminal List killer bumped")
+    spell("Player-1-00006010", "Strangerkill", 20)
+    die()
+    local st = ns.List.Get(goodKey("Strangerkill"))
+    truthy(st and st.source == "pvp" and st.kills == 1, "unknown killer added as before")
+    -- Assists: a Good Folk damager is skipped, others added.
+    local s = ns.DB.Settings()
+    s.addRecentDamagers = true
+    M.printed = {}
+    swing("Player-1-00006001", "Kindsoul", -1)
+    swing("Player-1-00000002", "Helper", -1)
+    S.time = S.time + 2
+    spell("Player-1-00000001", "Killer", 20)
+    die()
+    eq(ns.List.Get(goodKey("Kindsoul")), nil, "Good Folk assist not added")
+    truthy(printed("Kindsoul hit you just before you died, but they're on the Good Folk"), "assist note")
+    eq(ns.List.Get("helper-camwowus2realm1pve").assists, 2, "other assist counted")
+    -- Good Folk killer + a normal assist: the assist is still recorded.
+    swing("Player-1-00000002", "Helper", -1)
+    S.time = S.time + 1
+    spell("Player-1-00006001", "Kindsoul", 20) -- the killing blow resolves the death right away
+    die()
+    eq(ns.List.Get("helper-camwowus2realm1pve").assists, 3, "assist recorded alongside a Good Folk killer")
+    ns.Combat.recent = { { t = S.time, guid = "Player-1-00006001", name = "Kindsoul", flags = 0x548, killing = true } }
+    eq(ns.Combat.Resolve(), "good", "Resolve reports a Good Folk killer")
+    S.time = S.time + 60
+    s.addRecentDamagers = false
+    -- Nobody was ever put on the Good Folk by any of this.
+    eq(ns.Good.Count(), goodBefore, "nobody auto-added to the Good Folk")
+    for _, g in pairs(TheTerminalListDB.good) do truthy(g.source ~= "pvp", g.key .. " has source pvp") end
+    noneOnBoth()
+    ns.List.Remove(goodKey("Strangerkill"))
+    rawset(_G, "CombatLogGetCurrentEventInfo", nil)
+end)
+
+test("no combat log: Yes on the ask popup for a Good Folk target adds nobody", function()
+    S.units.target = { guid = "Player-1-00006001", name = "Kindsoul", hostile = true }
+    M.Fire("PLAYER_TARGET_CHANGED")
+    M.popups, M.printed = {}, {}
+    S.time = S.time + 5
+    die()
+    truthy(lastPopup() and lastPopup().which == "THETERMINALLIST_ASK_KILLER", "asked")
+    StaticPopupDialogs.THETERMINALLIST_ASK_KILLER.OnAccept()
+    eq(ns.List.Get(goodKey("Kindsoul")), nil, "not added")
+    truthy(ns.Good.Get(goodKey("Kindsoul")), "still Good Folk")
+    truthy(printed("on the Good Folk"), "note printed")
+    S.units.target = nil
+    ns.Combat.lastHostile = nil
+end)
+
+test("list window: Good Folk filter shows hearts; All/PvP/Manual are The List only", function()
+    ns.UI.SetFilter("")
+    ns.db.global.filter = "good"
+    M.texts = {}
+    ns.UI.Open("list")
+    truthy(textHas("Kindsoul") and textHas("Healbot"), "Good Folk listed")
+    truthy(textHas(ns.HEART), "heart rows")
+    truthy(textHas("Good Folk"), "chip / title")
+    truthy(not textHas("Gankalot"), "no Terminal List players")
+    truthy(not textHas("|r kill"), "no kill counts")
+    ns.db.global.filter = "all"
+    M.texts = {}
+    ns.UI.Refresh()
+    truthy(textHas("Gankalot"), "The List")
+    truthy(not textHas("Kindsoul") and not textHas("Healbot"), "'all' doesn't include the Good Folk")
+    eq(#ns.List.Query("", "recent", "good"), ns.Good.Count())
+    for _, e in ipairs(ns.List.Query("", "recent", "all")) do truthy(not ns.Good.Get(e.key), "all = The List only") end
+    -- Empty states mention the Good Folk commands.
+    local saved = TheTerminalListDB.good
+    TheTerminalListDB.good = {}
+    ns.db.global.filter = "good"
+    M.texts = {}
+    ns.UI.Refresh()
+    truthy(textHas("No Good Folk yet."), "Good Folk empty state")
+    truthy(textHas("/tlist good Name"), "how to add")
+    TheTerminalListDB.good = saved
+    local savedEntries = TheTerminalListDB.entries
+    TheTerminalListDB.entries = {}
+    ns.db.global.filter = "all"
+    M.texts = {}
+    ns.UI.Refresh()
+    truthy(textHas("The list is empty.") and textHas("/tlist good Name"), "Terminal List empty state mentions the Good Folk")
+    TheTerminalListDB.entries = savedEntries
+    ns.List.ResetIndex()
+    M.texts = {}
+    ns.Slash("about")
+    truthy(textHas("/tlist good [Name[-Realm]] [note]"), "About lists the Good Folk commands")
+    M.texts = {}
+    ns.UI.Open("settings", "Recognition")
+    truthy(textHas(ns.HEART), "Recognition mentions the heart")
+    M.printed = {}
+    ns.Slash("help")
+    truthy(printed("/tlist good [Name[-Realm]] [note]") and printed("/tlist ungood") and printed("/tlist goodnote"), "help")
+    renderAll("good folk")
+end)
+
 io.write(("%d passed, %d failed\n"):format(passed, failed))
 os.exit(failed == 0 and 0 or 1)
