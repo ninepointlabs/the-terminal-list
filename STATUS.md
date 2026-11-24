@@ -14,11 +14,15 @@
 - **Not done (not authorized):** CurseForge/Wago, GitHub Pages, DNS, email or social posts. Nothing was installed into the live WoW folder: `tools/install-dev.sh` was only run into a scratch folder. WTF/SavedVariables and screenshots weren't touched; the installed AddOns folder was only read, to learn APIs.
 - `BRIEF.md` is gitignored (as in Forever Rogue), because it describes Tim's characters and install paths.
 
-## Good Folk list (2026-11-24, in review)
+## Good Folk list (2026-11-24, released in v0.1.1)
 
 Tim (2026-11-24): "a second list I can add people to, which are the good folk, and it puts a heart next to their name instead of the target icon."
 
-**Where:** branch `feature/good-folk` (worktree `/home/tim/Projects/the-terminal-list-good-folk`, off `origin/main` `3056556`), PR against `main`. **Not merged, no tag, no release, no version bump.** `docs/` and the website are untouched. Nothing installed into the live AddOns folder (`tools/install-dev.sh` only into a scratch folder: 22 files, `Media/Heart.tga` included).
+**Where:** PR #2 (`feature/good-folk`), squash-merged to `main` as `2d82563` at Tim's request ("merge and do point release"). **Released as v0.1.1** (2026-11-24): https://github.com/ninepointlabs/the-terminal-list/releases/tag/v0.1.1. The annotated tag points at `b7b79ae` (README status line → v0.1.1).
+  - Before tagging, `omaforge clients` reported Forever 1.60.1.71091 / Interface 16001, which matches both TOCs. Tests on merged `main`: 54/54.
+  - The Release workflow passed (run 45484121318). Assets: `TheTerminalList-v0.1.1.zip` (TOC `## Version: v0.1.1`, Interface 16001; Core, Modules, UI, `Media/Crosshair.tga` + `Media/Heart.tga`, LICENSE, CHANGELOG; checked by downloading it) and `release.json` (flavor `forever`, interface 16001). Packager notes were replaced with a feature summary and install steps. No autonomix-cli line: no Linux executables.
+  - `omaforge check -c forever` shows Tim's install as `v0.1.0 -> v0.1.1`. I did **not** run `omaforge update`; Tim updates it himself.
+  - `docs/` and the website are untouched (the site still says v0.1.0). Nothing installed into the live AddOns folder (`tools/install-dev.sh` only into a scratch folder: 22 files, `Media/Heart.tga` included).
 
 **What landed:**
 - **Data:** `TheTerminalListDB.good` (key `name-realm` → entry), same identity model and fields as The List minus `kills`/`assists`/`lastKill`; `source` is always `manual`. `ns.Good` (`Get`/`Add`/`Remove`/`SetNote`/`Count`) lives in `Modules/List.lua` next to `ns.List`; `List.Which(key)` returns the entry and `"list"`/`"good"`. `List.ResolveKey` and the known-realm check look at both lists.
@@ -74,7 +78,7 @@ Tim (2026-11-24): "a second list I can add people to, which are the good folk, a
 9. *(mine)* Someone added by hand doesn't trigger the "is here" session alert for the rest of that session (you're looking at them). PvP-added killers still alert.
 10. *(mine)* Duels: a duel counts as active from `DUEL_REQUESTED` or Tim's own `StartDuel` until `DUEL_FINISHED`, plus 10 s of grace for DoTs. A request that never finishes stops counting after 5 minutes. The duel opponent is never auto-added within 60 s of the duel ending.
 11. *(mine)* Category `PvP` in the TOC; window sidebar **The List** · **Settings** (List & PvP · Recognition · About).
-12. *(2026-11-24, in review)* The Good Folk list and its heart: see **Good Folk list** above.
+12. *(2026-11-24, v0.1.1)* The Good Folk list and its heart: see **Good Folk list** above.
 
 ## Big caveat: the combat log on Forever
 
@@ -212,4 +216,4 @@ Before any future tag, re-run `omaforge clients` and bump `## Interface` in both
 10. **Forever last names:** does `UnitName(unit)` return a last name as the second value, and does `GetPlayerInfoByGUID` return the realm as `""` for your own realm? The realm/last-name split depends on this.
 11. **Crosshair texture:** the TGA loads (no green square) on nameplates, the target frame, the minimap button, the window header and the addon list icon.
 12. Window layout and scrolling with many entries, the minimap button position, Lua errors (`/console scriptErrors 1`).
-13. **Good Folk** (once the PR is merged and installed): the 11-point checklist under **Good Folk list** above.
+13. **Good Folk** (after `omaforge update -c forever`): the 11-point checklist under **Good Folk list** above.
