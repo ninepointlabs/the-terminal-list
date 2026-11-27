@@ -881,19 +881,20 @@ test("migration: schema 1 saved variables keep The List and every setting; Good 
     eq(acc.sort, "kills"); eq(acc.filter, "pvp")
     eq(type(acc.good), "table", "good table created")
     eq(next(acc.good), nil, "Good Folk empty")
-    eq(acc.schema, 2, "schema written"); eq(ns.DB.SCHEMA, 2)
-    eq(char.schema, 2); eq(char.window.tab, "settings", "window state kept")
+    eq(acc.schema, 3, "schema written"); eq(ns.DB.SCHEMA, 3)
+    eq(char.schema, 3); eq(char.window.tab, "settings", "window state kept")
+    eq(type(acc.groups), "table", "groups table created too"); eq(next(acc.groups), nil)
     eq(ns.List.Count(), 2); eq(ns.Good.Count(), 0)
     eq(ns.List.Get("meanie-camwowus2realm1pve").kills, 3)
     -- Running Init again changes nothing.
     local again = copy(acc)
     same(ns.DB.Init(acc, char), again, "second login")
-    -- Fresh install: schema 2 with an empty Good Folk list.
+    -- Fresh install: current schema with an empty Good Folk list.
     local fresh = ns.DB.Init(nil, nil)
-    eq(fresh.schema, 2); eq(next(fresh.good), nil); eq(next(fresh.entries), nil)
+    eq(fresh.schema, 3); eq(next(fresh.good), nil); eq(next(fresh.entries), nil); eq(next(fresh.groups), nil)
     -- Back to the test session's saved variables.
     TheTerminalListDB, TheTerminalListCharDB = ns.DB.Init(TheTerminalListDB, TheTerminalListCharDB)
-    eq(TheTerminalListDB.schema, 2)
+    eq(TheTerminalListDB.schema, 3)
     eq(type(TheTerminalListDB.good), "table")
 end)
 
@@ -1238,6 +1239,494 @@ test("list window: Good Folk filter shows hearts; All/PvP/Manual are The List on
     ns.Slash("help")
     truthy(printed("/tlist good [Name[-Realm]] [note]") and printed("/tlist ungood") and printed("/tlist goodnote"), "help")
     renderAll("good folk")
+end)
+
+----------------------------------------------------------------------------
+-- Past groups (forward-looking group history, number badge, Group history)
+----------------------------------------------------------------------------
+local G = ns.Groups
+local function gk(name) return name:lower() .. "-camwowus2realm1pve" end
+local function clearRoster()
+    for i = 1, 40 do S.units["party" .. i], S.units["raid" .. i] = nil, nil end
+end
+-- Put me in a group with these units and let the roster event settle.
+local function grouped(kind, members)
+    clearRoster()
+    S.group = kind and { kind = kind } or nil
+    if kind == "raid" then
+        S.units.raid1 = S.me -- the raid roster includes me
+        for i, u in ipairs(members) do S.units["raid" .. (i + 1)] = u end
+    elseif kind then
+        for i, u in ipairs(members) do S.units["party" .. i] = u end
+    end
+    M.Fire("GROUP_ROSTER_UPDATE")
+    M.RunTimers()
+end
+local function solo() grouped(nil, {}) end
+local TANK = { guid = "Player-1-0000A001", name = "Tankbro", class = "WARRIOR", race = "Dwarf", raceToken = "Dwarf", faction = "Alliance" }
+local HEALER = { guid = "Player-1-0000A002", name = "Mendy", class = "MAGE", race = "Gnome", raceToken = "Gnome", faction = "Alliance" }
+local HUNTER = { guid = "Player-1-0000A003", name = "Arrowz", class = "ROGUE", race = "Human", raceToken = "Human", faction = "Alliance" }
+
+test("past groups: events registered; a first group records each teammate once, never on either list", function()
+    for _, ev in ipairs({ "GROUP_ROSTER_UPDATE", "ZONE_CHANGED_NEW_AREA", "QUEST_ACCEPTED", "QUEST_TURNED_IN", "QUEST_WATCH_UPDATE", "QUEST_LOG_UPDATE" }) do
+        truthy(M.events[ev], ev .. " registered")
+    end
+    eq(G.Total(), 0, "nothing before any group (forward-looking only)")
+    local listN, goodN = ns.List.Count(), ns.Good.Count()
+    S.zone = "Westfall"
+    grouped("party", { TANK, HEALER })
+    local t = G.Get(gk("Tankbro"))
+    truthy(t, "teammate recorded")
+    eq(t.count, 1); eq(#t.sessions, 1)
+    local s = t.sessions[1]
+    eq(s.type, "party"); eq(s.zone, "Westfall"); eq(s.start, S.now)
+    eq(s.char.name, "Rip", "my character"); eq(s.char.realm, "CAMWOWUS2Realm1PvE")
+    eq(t.name, "Tankbro"); eq(t.realm, "CAMWOWUS2Realm1PvE"); eq(t.class, "WARRIOR")
+    eq(G.Count(gk("Mendy")), 1)
+    eq(G.Get(gk("Rip")), nil, "I'm never stored")
+    eq(ns.List.Count(), listN, "nobody added to The Terminal List"); eq(ns.Good.Count(), goodN, "nobody added to the Good Folk")
+    eq(ns.List.Get(gk("Tankbro")), nil); eq(ns.Good.Get(gk("Tankbro")), nil)
+    -- Same active group: more roster events, time passing, no new session.
+    for _ = 1, 3 do
+        S.now = S.now + 240
+        grouped("party", { TANK, HEALER })
+    end
+    eq(G.Count(gk("Tankbro")), 1, "same group doesn't count again")
+    eq(#G.Get(gk("Tankbro")).sessions, 1)
+    eq(G.Get(gk("Tankbro")).sessions[1].seen, S.now, "last seen kept fresh")
+    noneOnBoth()
+end)
+
+test("past groups: disconnect, reload or a brief drop within 15 minutes is the same session; later is a new one", function()
+    -- A brief drop and re-invite.
+    solo()
+    S.now = S.now + 10 * 60
+    grouped("party", { TANK })
+    eq(G.Count(gk("Tankbro")), 1, "re-invite inside the window")
+    -- A reload: fresh in-memory state, same saved variables.
+    TheTerminalListDB, TheTerminalListCharDB = ns.DB.Init(TheTerminalListDB, TheTerminalListCharDB)
+    G.current = {}
+    S.now = S.now + 120
+    M.Fire("PLAYER_ENTERING_WORLD")
+    M.RunTimers()
+    eq(G.Count(gk("Tankbro")), 1, "reload/disconnect doesn't count again")
+    eq(G.current[gk("Tankbro")], true, "back in the current group")
+    -- A long, quiet group: the refresh tick keeps it one session.
+    for _ = 1, 4 do
+        S.now = S.now + 10 * 60
+        M.RunTimers() -- the keep-fresh tick
+    end
+    grouped("party", { TANK })
+    eq(G.Count(gk("Tankbro")), 1, "a 40-minute group is one session")
+    -- Leave, and group again after the cooldown: a new session.
+    solo()
+    S.now = S.now + G.COOLDOWN + 60
+    S.zone = "Duskwood"
+    grouped("party", { TANK })
+    local t = G.Get(gk("Tankbro"))
+    eq(t.count, 2, "new session later"); eq(#t.sessions, 2)
+    eq(t.sessions[2].zone, "Duskwood")
+    eq(G.Count(gk("Mendy")), 1, "someone not in the new group is unchanged")
+    -- The same person on a different character of mine inside the window: a new session too.
+    solo()
+    S.now = S.now + 60
+    S.me.name = "Andric"
+    grouped("party", { TANK })
+    eq(G.Count(gk("Tankbro")), 3, "different character of mine")
+    eq(G.Get(gk("Tankbro")).sessions[3].char.name, "Andric")
+    S.me.name = "Rip"
+    solo()
+    S.now = S.now + G.COOLDOWN + 60
+end)
+
+test("past groups: a party converted to a raid is the same session (type updated)", function()
+    grouped("party", { HUNTER })
+    eq(G.Count(gk("Arrowz")), 1)
+    S.now = S.now + 60
+    grouped("raid", { HUNTER, TANK })
+    local h = G.Get(gk("Arrowz"))
+    eq(h.count, 1, "conversion doesn't count again")
+    eq(h.sessions[1].type, "raid", "type updated")
+    eq(G.Get(gk("Rip")), nil, "my own raid slot skipped")
+    eq(G.Count(gk("Tankbro")), 4, "Tankbro: a new session (the last one was over 15 min ago)")
+    S.now = S.now + 60
+    grouped("party", { HUNTER })
+    eq(G.Count(gk("Arrowz")), 1, "and back to party")
+    eq(G.Get(gk("Arrowz")).sessions[1].type, "party")
+end)
+
+test("past groups: secret or unreadable names, NPCs and pets are never stored; unreadable roster changes nothing", function()
+    M.InstallSecrets()
+    local before = G.Total()
+    grouped("party", {
+        { guid = "Player-1-0000B001", name = M.SECRET },
+        { guid = "Player-1-0000B002", name = "Unknown" },
+        { guid = "Creature-0-1-2-3-4", name = "Wolfie", player = false },
+        { guid = M.SECRET, name = "Ghosty", realm = M.SECRET },
+    })
+    eq(G.Total(), before, "nothing stored")
+    -- A roster that can't be read at all: nothing recorded, nothing ended.
+    S.units.party1 = HUNTER
+    S.group = { kind = "party", secret = true }
+    local n = G.Scan()
+    eq(n, 0)
+    eq(G.Count(gk("Arrowz")), 1)
+    M.RemoveSecrets()
+    solo()
+end)
+
+test("past groups: battlegrounds and arenas never start a session", function()
+    S.instanceType = "pvp"
+    local stranger = { guid = "Player-1-0000C001", name = "Bgrandom", class = "WARRIOR" }
+    grouped("raid", { stranger })
+    eq(G.Get(gk("Bgrandom")), nil, "battleground raid not recorded")
+    S.instanceType = nil
+    solo()
+end)
+
+test("past groups: a dungeon is attached to the current session when readable, never invented", function()
+    S.now = S.now + G.COOLDOWN + 60
+    S.zone = "Westfall"
+    grouped("party", { TANK, HEALER })
+    local before = G.Count(gk("Tankbro"))
+    -- Zone into the instance; its name is hidden mid-run.
+    M.InstallSecrets()
+    S.instanceType, S.instanceName, S.zone = "party", M.SECRET, M.SECRET
+    M.Fire("PLAYER_ENTERING_WORLD")
+    M.RunTimers()
+    local s = G.LastSession(G.Get(gk("Tankbro")))
+    eq(s.instances, nil, "no name invented while it's hidden")
+    eq(G.Count(gk("Tankbro")), before, "zoning in with the same group doesn't count")
+    -- It becomes readable later in the same session.
+    S.instanceName, S.zone = "The Deadmines", "The Deadmines"
+    M.Fire("ZONE_CHANGED_NEW_AREA")
+    eq(s.instances and s.instances[1], "The Deadmines", "filled in once readable")
+    M.Fire("ZONE_CHANGED_NEW_AREA")
+    M.Fire("PLAYER_ENTERING_WORLD")
+    M.RunTimers()
+    eq(#s.instances, 1, "no duplicate")
+    eq(G.Count(gk("Tankbro")), before)
+    eq(G.LastSession(G.Get(gk("Mendy"))).instances[1], "The Deadmines", "on every teammate's session")
+    eq(s.zone, "Westfall", "start zone kept")
+    M.RemoveSecrets()
+    S.instanceType, S.instanceName, S.zone = nil, nil, "Westfall"
+end)
+
+test("past groups: readable quest titles go on the current session; nothing invented", function()
+    local a, b, c, d = ns.Try(function() return 1, nil, nil, 4 end)
+    eq(a, 1); eq(b, nil); eq(d, 4, "ns.Try keeps results after a nil")
+    local log = {
+        { title = "Westfall", header = true },
+        { title = "The Defias Brotherhood", id = 65 },
+        { title = "Red Leather Bandanas", id = 153 },
+    }
+    rawset(_G, "GetNumQuestLogEntries", function() return #log end)
+    rawset(_G, "GetQuestLogTitle", function(i)
+        local q = log[i]
+        if not q then return nil end
+        return q.title, 18, nil, q.header or false, nil, nil, nil, q.id
+    end)
+    M.Fire("QUEST_ACCEPTED", 2, 65)          -- Classic: (questLogIndex, questID)
+    local s = G.LastSession(G.Get(gk("Tankbro")))
+    eq(s.quests and s.quests[1].title, "The Defias Brotherhood")
+    eq(s.quests[1].status, "accepted")
+    M.Fire("QUEST_WATCH_UPDATE", 2)
+    eq(s.quests[1].status, "progressed")
+    M.Fire("QUEST_WATCH_UPDATE", 1)          -- a header line: nothing
+    eq(#s.quests, 1, "headers are not quests")
+    M.Fire("QUEST_LOG_UPDATE")               -- caches titles while grouped
+    table.remove(log, 2)                     -- turned in: gone from the log
+    M.Fire("QUEST_TURNED_IN", 65, 100, 0)
+    eq(s.quests[1].status, "completed", "turn-in found through the cache")
+    eq(#s.quests, 1, "same quest, not a second line")
+    M.Fire("QUEST_ACCEPTED", 2, 153)
+    eq(#s.quests, 2, "more than one quest per session")
+    eq(G.LastSession(G.Get(gk("Mendy"))).quests[2].title, "Red Leather Bandanas", "on every teammate's session")
+    -- Quest-complete dialog title when the log no longer has it.
+    rawset(_G, "GetTitleText", function() return "Red Silk Bandanas" end)
+    M.Fire("QUEST_COMPLETE")
+    M.Fire("QUEST_TURNED_IN", 9999, 0, 0)
+    eq(s.quests[3].title, "Red Silk Bandanas"); eq(s.quests[3].status, "completed")
+    rawset(_G, "GetTitleText", nil)
+    -- Secret or empty: nothing added.
+    M.InstallSecrets()
+    log[2] = { title = M.SECRET, id = 777 }
+    M.Fire("QUEST_ACCEPTED", 2, 777)
+    M.Fire("QUEST_TURNED_IN", 4242, 0, 0)
+    eq(#s.quests, 3, "secret / unknown titles never stored")
+    M.RemoveSecrets()
+    log = {}
+    M.Fire("QUEST_TURNED_IN", 31337, 0, 0)
+    eq(#s.quests, 3, "empty log: nothing")
+    -- Not grouped: nothing is attached anywhere.
+    solo()
+    log = { { title = "Solo Quest", id = 5 } }
+    M.Fire("QUEST_ACCEPTED", 1, 5)
+    eq(#s.quests, 3, "solo quests aren't group history")
+    rawset(_G, "GetNumQuestLogEntries", nil)
+    rawset(_G, "GetQuestLogTitle", nil)
+end)
+
+test("past groups: old sessions are trimmed but the count stays right", function()
+    local cap = G.MAX_SESSIONS
+    G.MAX_SESSIONS = 3
+    local dps = { guid = "Player-1-0000D001", name = "Repeatpal", class = "MAGE" }
+    for _ = 1, 5 do
+        S.now = S.now + G.COOLDOWN + 60
+        grouped("party", { dps })
+        solo()
+    end
+    local r = G.Get(gk("Repeatpal"))
+    eq(r.count, 5, "count keeps every session")
+    eq(#r.sessions, 3, "only the newest kept")
+    eq(r.sessions[3].start, S.now)
+    M.texts = {}
+    ns.UI.ShowGroupHistory(r.key)
+    truthy(textHas("Grouped together 5 times"), "count in the view")
+    truthy(textHas("Showing the last 3 sessions"), "trimming explained")
+    G.MAX_SESSIONS = cap
+end)
+
+test("badges: number alone, heart + number, crosshair only for The Terminal List, none without history", function()
+    local s = ns.DB.Settings()
+    eq(s.groupBadge, true, "badge on by default"); eq(s.groupBadgeList, false, "crosshair-only by default")
+    -- Tankbro: grouped, on neither list -> number only.
+    S.units.nameplate5 = TANK
+    local p = M.AddPlate("nameplate5")
+    M.Fire("NAME_PLATE_UNIT_ADDED", "nameplate5")
+    truthy(not (p.ttlMark and p.ttlMark:IsShown()), "no heart or crosshair")
+    truthy(p.ttlCount and p.ttlCount:IsShown(), "number badge shown")
+    eq(p.ttlCount.text.__text, tostring(G.Count(gk("Tankbro"))))
+    S.units.target = TANK
+    M.Fire("PLAYER_TARGET_CHANGED")
+    local mark, badge = ns.Target.Mark(), ns.Target.Badge()
+    eq(mark:IsShown(), false); eq(badge:IsShown(), true, "target frame badge")
+    eq(badge.text.__text, tostring(G.Count(gk("Tankbro"))))
+    -- Mendy joins the Good Folk -> heart and number together.
+    ns.Good.Add({ name = "Mendy", realm = "CAMWOWUS2Realm1PvE" })
+    S.units.nameplate5 = HEALER
+    M.Fire("NAME_PLATE_UNIT_ADDED", "nameplate5")
+    truthy(p.ttlMark:IsShown() and p.ttlMark.tex.__texture == ns.HEART, "heart")
+    truthy(p.ttlCount:IsShown() and p.ttlCount.text.__text == "2", "and the number")
+    S.units.target = HEALER
+    M.Fire("PLAYER_TARGET_CHANGED")
+    truthy(mark:IsShown() and mark.tex.__texture == ns.HEART and badge:IsShown(), "both on the target frame")
+    -- Arrowz goes on The Terminal List -> crosshair only, unless the extra toggle is on.
+    ns.List.Add({ name = "Arrowz", realm = "CAMWOWUS2Realm1PvE" }, { source = "manual" })
+    S.units.nameplate5 = HUNTER
+    M.Fire("NAME_PLATE_UNIT_ADDED", "nameplate5")
+    truthy(p.ttlMark:IsShown() and p.ttlMark.tex.__texture == ns.CROSSHAIR, "crosshair")
+    eq(p.ttlCount:IsShown(), false, "no number beside the crosshair by default")
+    S.units.target = HUNTER
+    M.Fire("PLAYER_TARGET_CHANGED")
+    eq(badge:IsShown(), false, "target frame: crosshair only")
+    s.groupBadgeList = true
+    ns.Fire("RECOGNITION_CHANGED")
+    eq(p.ttlCount:IsShown(), true, "optional: number beside the crosshair")
+    eq(badge:IsShown(), true)
+    s.groupBadgeList = false
+    ns.Fire("RECOGNITION_CHANGED")
+    -- No history -> no badge.
+    S.units.nameplate5 = { guid = "Player-1-0000E001", name = "Neverseen" }
+    M.Fire("NAME_PLATE_UNIT_ADDED", "nameplate5")
+    eq(p.ttlCount:IsShown(), false, "count 0: no badge")
+    S.units.target = { guid = "Player-1-0000E001", name = "Neverseen" }
+    M.Fire("PLAYER_TARGET_CHANGED")
+    eq(badge:IsShown(), false)
+    -- Toggles: the badge toggle and the nameplate / target toggles.
+    S.units.nameplate5, S.units.target = TANK, TANK
+    s.groupBadge = false
+    ns.Fire("RECOGNITION_CHANGED")
+    eq(p.ttlCount:IsShown(), false, "badge toggle off"); eq(badge:IsShown(), false)
+    s.groupBadge, s.nameplate, s.target = true, false, false
+    ns.Fire("RECOGNITION_CHANGED")
+    eq(p.ttlCount:IsShown(), false, "nameplate toggle off"); eq(badge:IsShown(), false, "target toggle off")
+    s.nameplate, s.target = true, true
+    ns.Fire("RECOGNITION_CHANGED")
+    eq(p.ttlCount:IsShown(), true); eq(badge:IsShown(), true)
+    -- Removing the plate hides the badge; forbidden and secret plates don't error.
+    M.Fire("NAME_PLATE_UNIT_REMOVED", "nameplate5")
+    eq(p.ttlCount:IsShown(), false)
+    p.IsForbidden = function() return true end
+    eq(ns.Nameplates.Update("nameplate5"), false)
+    M.InstallSecrets()
+    M.plates.nameplate6 = M.SECRET
+    eq(ns.Nameplates.Update("nameplate6"), false)
+    S.units.nameplate7 = { guid = M.SECRET, name = M.SECRET }
+    local p7 = M.AddPlate("nameplate7")
+    truthy(pcall(ns.Nameplates.Update, "nameplate7"), "secret unit: no error")
+    eq(p7.ttlCount, nil)
+    M.RemoveSecrets()
+    M.plates, S.units.nameplate5, S.units.nameplate7, S.units.target = {}, nil, nil, nil
+    M.Fire("PLAYER_TARGET_CHANGED")
+end)
+
+local function tipFor(unit)
+    S.units.mouseover = unit
+    GameTooltip.__lines = {}
+    GameTooltip.GetUnit = function() return unit.name, "mouseover" end
+    M.tooltipHooks[2](GameTooltip)
+    return table.concat(GameTooltip.__lines, "\n")
+end
+
+test("tooltip: times grouped (singular/plural), last date, zone and dungeon; on neither list too", function()
+    local lines = tipFor(HUNTER)
+    truthy(lines:find("On The Terminal List", 1, true), "list line kept")
+    truthy(lines:find("Grouped together 1 time", 1, true) and not lines:find("1 times", 1, true), "singular: " .. lines)
+    local t = tipFor(TANK)
+    truthy(not t:find("Terminal List", 1, true) and not t:find("Good Folk", 1, true), "neither list")
+    truthy(t:find(("Grouped together %d times"):format(G.Count(gk("Tankbro"))), 1, true), "plural: " .. t)
+    local last = G.LastSession(G.Get(gk("Tankbro")))
+    truthy(t:find("Last: " .. os.date("%Y-%m-%d", last.start) .. " in Westfall · The Deadmines", 1, true), "last date, zone, dungeon: " .. t)
+    local g = tipFor(HEALER)
+    truthy(g:find("Good Folk", 1, true) and g:find("Grouped together 2 times", 1, true), "Good Folk + history")
+    eq(tipFor({ guid = "Player-1-0000E001", name = "Neverseen" }), "", "no history, no list: nothing")
+    ns.DB.Settings().tooltip = false
+    eq(tipFor(TANK), "", "tooltip setting off")
+    ns.DB.Settings().tooltip = true
+    S.units.mouseover = nil
+end)
+
+test("right-click: Group history only with history (on neither list too); the view lists every session", function()
+    S.units.target = TANK
+    local root = M.MenuRoot()
+    M.menus.MENU_UNIT_TARGET(nil, root, { unit = "target" })
+    local item = root:Button("Group history")
+    truthy(item, "offered for someone on neither list")
+    truthy(root:Button("Add to The Terminal List") and root:Button("Add to the Good Folk"), "list items unchanged")
+    M.texts = {}
+    item.fn()
+    truthy(ns.UI.IsShown() and ns.db.char.window.tab == "groups", "opens the history view")
+    local r = G.Get(gk("Tankbro"))
+    truthy(textHas("Group history"), "title")
+    truthy(textHas(("Grouped together %d times"):format(r.count)), "count")
+    for _, s in ipairs(r.sessions) do truthy(textHas(os.date("%Y-%m-%d %H:%M", s.start)), "every session listed") end
+    truthy(textHas("Zone: Westfall") and textHas("Zone: Duskwood"), "zones")
+    truthy(textHas("Dungeon / instance: |cffffffffThe Deadmines|r"), "dungeon")
+    truthy(textHas("The Defias Brotherhood (turned in)") and textHas("Red Leather Bandanas (accepted)"), "quests")
+    truthy(textHas("You were on Rip") and textHas("You were on Andric"), "my character")
+    truthy(textHas("Party") and textHas("Raid"), "party vs raid")
+    -- Empty facts are left out.
+    M.texts = {}
+    ns.UI.ShowGroupHistory(gk("Repeatpal"))
+    truthy(not textHas("Dungeon / instance") and not textHas("Quests:"), "no empty dungeon/quest lines")
+    -- On a list: still there, next to the list items.
+    for _, u in ipairs({ HUNTER, HEALER }) do
+        S.units.target = u
+        root = M.MenuRoot()
+        M.menus.MENU_UNIT_TARGET(nil, root, { unit = "target" })
+        truthy(root:Button("Group history"), u.name .. ": offered")
+    end
+    -- No history: no item.
+    S.units.target = { guid = "Player-1-0000E001", name = "Neverseen" }
+    root = M.MenuRoot()
+    M.menus.MENU_UNIT_TARGET(nil, root, { unit = "target" })
+    eq(root:Button("Group history"), nil, "no empty item")
+    -- Chat names (name + server) and party portraits.
+    root = M.MenuRoot()
+    M.menus.MENU_UNIT_FRIEND(nil, root, { name = "Tankbro", server = "CAMWOWUS2Realm1PvE" })
+    truthy(root:Button("Group history"), "chat-name menu")
+    S.units.party1 = TANK
+    root = M.MenuRoot()
+    M.menus.MENU_UNIT_PARTY(nil, root, { unit = "party1" })
+    truthy(root:Button("Group history"), "party portrait menu")
+    S.units.party1, S.units.target = nil, nil
+    -- The overview lists everyone.
+    M.texts = {}
+    ns.UI.ShowGroupHistory(nil)
+    truthy(textHas("Past groups") and textHas("Tankbro") and textHas("Mendy") and textHas("Repeatpal"), "overview")
+    truthy(textHas("earlier groups can't be known"), "forward-looking copy")
+    renderAll("groups")
+end)
+
+test("/tlist groups [Name]: by name, by target, everyone; help and About list it", function()
+    M.texts = {}
+    eq(ns.Slash("groups Tankbro"), G.Get(gk("Tankbro")))
+    eq(ns.UI.groupKey, gk("Tankbro"))
+    truthy(textHas("Group history"))
+    S.units.target = HEALER
+    eq(ns.Slash("groups"), G.Get(gk("Mendy")), "no name: target")
+    S.units.target = nil
+    M.printed = {}
+    eq(ns.Slash("groups Neverseen"), nil)
+    truthy(printed("No past groups with Neverseen yet."), "says so")
+    ns.Slash("groups 1337")
+    truthy(printed("doesn't look like a character name"))
+    eq(ns.Slash("groups"), true, "no target: everyone")
+    eq(ns.UI.groupKey, nil)
+    M.printed = {}
+    ns.Slash("help")
+    truthy(printed("/tlist groups [Name[-Realm]]"), "help")
+    M.texts = {}
+    ns.Slash("about")
+    truthy(textHas("/tlist groups [Name[-Realm]]") and textHas("Group history"), "About")
+    -- add / remove / note / good still mean what they meant.
+    ns.Slash("add Tankbro")
+    truthy(ns.List.Get(gk("Tankbro")), "/tlist add still adds to The Terminal List")
+    eq(G.Count(gk("Tankbro")) > 0, true, "history kept")
+    ns.Slash("remove Tankbro")
+    eq(ns.List.Get(gk("Tankbro")), nil)
+    truthy(G.Get(gk("Tankbro")), "removing from a list leaves group history")
+end)
+
+test("settings: group badge toggle (on) and crosshair-number toggle (off) in Recognition", function()
+    ns.UI.Open("settings", "Recognition")
+    local cb = settingsCheck("Number badge for people I've grouped with")
+    eq(cb:GetChecked(), true)
+    local fired = 0
+    ns.On("RECOGNITION_CHANGED", function() fired = fired + 1 end)
+    cb:SetChecked(false)
+    cb.__scripts.OnClick(cb)
+    eq(TheTerminalListDB.settings.groupBadge, false)
+    truthy(fired > 0, "RECOGNITION_CHANGED fired")
+    cb = settingsCheck("Number badge for people I've grouped with")
+    cb:SetChecked(true)
+    cb.__scripts.OnClick(cb)
+    eq(TheTerminalListDB.settings.groupBadge, true)
+    eq(settingsCheck("...also beside The Terminal List's crosshair"):GetChecked(), false)
+end)
+
+test("migration: schema 2 (both lists, settings) keeps everything and gets an empty groups table", function()
+    local old = {
+        schema = 2,
+        entries = {
+            ["meanie-camwowus2realm1pve"] = { key = "meanie-camwowus2realm1pve", name = "Meanie", realm = "CAMWOWUS2Realm1PvE",
+                added = 1700000000, updated = 1700000100, note = "camped me", source = "pvp", kills = 3, assists = 1, class = "MAGE", lastKill = 1700000100 },
+        },
+        good = {
+            ["kindly-otherrealm"] = { key = "kindly-otherrealm", name = "Kindly", realm = "OtherRealm", last = "Smith",
+                added = 1700000300, updated = 1700000300, note = "rezzed me", source = "manual", lastSeen = 1700000400 },
+        },
+        settings = { autoAdd = false, addRecentDamagers = true, damageWindow = 12, nameplate = false, alert = true, alertSound = false,
+            target = false, tooltip = false, chat = false, askWhenUnknown = false, debug = true },
+        minimap = { angle = 77, hide = true },
+        sort = "name", filter = "good",
+    }
+    local function copy(t)
+        if type(t) ~= "table" then return t end
+        local o = {} for k, v in pairs(t) do o[k] = copy(v) end return o
+    end
+    local function same(a, b, path)
+        if type(a) ~= type(b) then error(path .. ": " .. tostring(a) .. " vs " .. tostring(b)) end
+        if type(a) ~= "table" then if a ~= b then error(path .. ": " .. tostring(a) .. " vs " .. tostring(b)) end return end
+        for k, v in pairs(a) do same(v, b[k], path .. "." .. tostring(k)) end
+        for k in pairs(b) do if a[k] == nil then error(path .. "." .. tostring(k) .. " added") end end
+    end
+    local before = copy(old)
+    local acc, char = ns.DB.Init(old, { schema = 2, window = { tab = "list" } })
+    same(acc.entries, before.entries, "entries")
+    same(acc.good, before.good, "good")
+    for k, v in pairs(before.settings) do eq(acc.settings[k], v, "setting " .. k) end
+    eq(acc.settings.groupBadge, true, "new badge setting defaults on")
+    eq(acc.settings.groupBadgeList, false)
+    same(acc.minimap, before.minimap, "minimap")
+    eq(acc.sort, "name"); eq(acc.filter, "good")
+    eq(acc.schema, 3); eq(char.schema, 3); eq(char.window.tab, "list")
+    eq(type(acc.groups), "table"); eq(next(acc.groups), nil, "groups empty")
+    local again = copy(acc)
+    same(ns.DB.Init(acc, char), again, "second login changes nothing")
+    TheTerminalListDB, TheTerminalListCharDB = ns.DB.Init(TheTerminalListDB, TheTerminalListCharDB)
+    truthy(G.Get(gk("Tankbro")), "test session's history back")
 end)
 
 io.write(("%d passed, %d failed\n"):format(passed, failed))

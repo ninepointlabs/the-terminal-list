@@ -1,8 +1,8 @@
 -- SavedVariables.
 --
--- TheTerminalListDB      (account)        the list itself, the Good Folk + every
---                                          setting, so a name added on one character
---                                          shows on all
+-- TheTerminalListDB      (account)        the list itself, the Good Folk, past
+--                                          groups + every setting, so a name added
+--                                          on one character shows on all
 -- TheTerminalListCharDB  (per character)  window state only
 local _, ns = ...
 
@@ -11,7 +11,9 @@ ns.DB = DB
 
 -- 1: v0.1.0 (entries + settings)
 -- 2: adds `good`, the Good Folk list (same entry shape, never source "pvp")
-DB.SCHEMA = 2
+-- 3: adds `groups`, past-group history (see Modules/Groups.lua) and the
+--    groupBadge / groupBadgeList settings
+DB.SCHEMA = 3
 
 local function deepDefaults(target, defaults)
     for k, v in pairs(defaults) do
@@ -39,6 +41,8 @@ DB.settingsDefaults = {
     chat = true,
     alert = false,            -- once-per-session alert when a listed player shows up
     alertSound = true,        -- ...with a short built-in sound (only if alert is on)
+    groupBadge = true,        -- number badge (times grouped) on nameplates and the target frame
+    groupBadgeList = false,   -- ...also beside The Terminal List's crosshair (off: crosshair only)
     debug = false,
 }
 
@@ -46,6 +50,7 @@ DB.accountDefaults = {
     schema = DB.SCHEMA,
     entries = {},             -- key ("name-realm", lower case) -> entry, see Modules/List.lua
     good = {},                -- the Good Folk: same keys and entry shape, see Modules/List.lua
+    groups = {},              -- past groups: same keys, see Modules/Groups.lua
     settings = DB.settingsDefaults,
     minimap = { angle = 200, hide = false },
     sort = "recent",          -- list window: recent | kills | name
@@ -62,6 +67,9 @@ DB.charDefaults = {
 function DB.Migrate(account, char)
     if (tonumber(account.schema) or 1) < 2 then
         if type(account.good) ~= "table" then account.good = {} end
+    end
+    if (tonumber(account.schema) or 1) < 3 then
+        if type(account.groups) ~= "table" then account.groups = {} end
     end
     if (tonumber(account.schema) or 1) < DB.SCHEMA then account.schema = DB.SCHEMA end
     if (tonumber(char.schema) or 1) < DB.SCHEMA then char.schema = DB.SCHEMA end

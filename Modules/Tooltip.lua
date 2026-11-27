@@ -1,5 +1,7 @@
 -- A tooltip line on a listed player: crosshair, note, kill count, how added.
 -- The Good Folk get a heart, "Good Folk" and their note, nothing about PvP.
+-- Anyone with past groups (on a list or not) also gets "Grouped together N
+-- times" and the last session's date, zone and dungeon.
 local _, ns = ...
 
 local Tip = {}
@@ -24,15 +26,27 @@ function Tip.AddEntryLines(tt, e, which)
     tt:AddLine(table.concat(parts, " · "), 0.75, 0.75, 0.8, true)
 end
 
+-- Past-group lines for a key; false when there's no history.
+function Tip.AddGroupLines(tt, key)
+    local r = ns.Groups.Get(key)
+    if not r or (r.count or 0) <= 0 then return false end
+    local c = ns.GROUP_COLOR
+    tt:AddLine(ns.Groups.TimesText(r.count), c[1], c[2], c[3])
+    local s = ns.Groups.LastSession(r)
+    if s then tt:AddLine("Last: " .. ns.Groups.WhereText(s), 0.75, 0.75, 0.8, true) end
+    return true
+end
+
 -- Returns true when lines were added (tests read it).
 function Tip.OnUnit(tt)
     if not ns.db or not ns.DB.Settings().tooltip then return false end
     if not tt or not tt.GetUnit then return false end
     local ok, _, unit = pcall(tt.GetUnit, tt)
     if not ok or not unit or ns.Secret(unit) then return false end
-    local e, which = ns.Alert.Check(unit, "mouseover")
-    if not e then return false end
-    Tip.AddEntryLines(tt, e, which)
+    local e, which, key = ns.Alert.Check(unit, "mouseover")
+    if e then Tip.AddEntryLines(tt, e, which) end
+    local grouped = key and Tip.AddGroupLines(tt, key)
+    if not e and not grouped then return false end
     if tt.Show then tt:Show() end
     return true
 end

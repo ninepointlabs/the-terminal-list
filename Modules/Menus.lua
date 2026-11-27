@@ -2,7 +2,8 @@
 -- player portraits (target, focus, party, raid) and names in chat, plus
 -- separate Good Folk entries ("Add to the Good Folk", "Edit Good Folk note",
 -- "Remove from the Good Folk"). For someone on one list, the other list's
--- entry reads "Move to ..." (adding moves them).
+-- entry reads "Move to ..." (adding moves them). Anyone with recorded past
+-- groups (on a list or not) also gets "Group history".
 --
 -- Uses the client's Menu.ModifyMenu("MENU_UNIT_*") hooks, built for addons to
 -- extend (installed Forever addons use the same). Tags this client doesn't
@@ -71,6 +72,10 @@ function Menus.Build(_, root, context)
                 ns.UI.EditGoodNote(added.key)
             end
         end)
+    end
+    -- Past groups (only when there are some: never an empty item)
+    if ns.Groups.Count(key) > 0 then
+        root:CreateButton("Group history", function() ns.UI.ShowGroupHistory(key) end)
     end
 end
 

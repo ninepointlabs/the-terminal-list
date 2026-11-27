@@ -71,11 +71,14 @@ function ns.Secret(...)
 end
 
 -- Call fn safely; returns its results, or nothing when it errors or is missing.
+-- Every result is kept, including ones after a nil (GetQuestLogTitle's
+-- questID is its 8th return, after several nils).
+local function pack(...) return { n = select("#", ...), ... } end
 function ns.Try(fn, ...)
     if type(fn) ~= "function" then return end
-    local res = { pcall(fn, ...) }
+    local res = pack(pcall(fn, ...))
     if not res[1] then return end
-    return unpack(res, 2)
+    return unpack(res, 2, res.n)
 end
 
 function ns.Trim(s)
