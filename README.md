@@ -19,7 +19,7 @@ It's a sibling of [Andric's Addon](https://andricsaddon.myazerothlife.com),
 
 > **Website:** [ttl.myazerothlife.com](https://ttl.myazerothlife.com)
 >
-> **Status:** [v0.1.1](https://github.com/ninepointlabs/the-terminal-list/releases/latest). Early in-game testing; see `STATUS.md` for the checklist.
+> **Status:** [v0.2.0](https://github.com/ninepointlabs/the-terminal-list/releases/latest). Early in-game testing; see `STATUS.md` for the checklist.
 
 - WoW Forever only (`WOW_PROJECT_ID 18`), Interface `16001`. No Ace3; Blizzard API only. MIT.
 - The list is stored **only on your computer**, in the account's saved variables (`TheTerminalListDB`). Every character

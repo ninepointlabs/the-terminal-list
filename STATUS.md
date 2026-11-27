@@ -58,11 +58,13 @@ Tim (2026-11-24): "a second list I can add people to, which are the good folk, a
 10. Existing Terminal List players still show the **red crosshair** everywhere; an existing v0.1.0 list is intact after `/reload`.
 11. `Media/Heart.tga` loads (no green square).
 
-## Past groups (2026-11-27, PR open, not merged or released)
+## Past groups (2026-11-27, released in v0.2.0)
 
 Tim (2026-11-27): "add possibly being able to write click on their name an pull the details on all the times we grouped" / "and what dungeon or quest it was on maybe".
 
-**Where:** branch `feat/group-history`, PR #3 (https://github.com/ninepointlabs/the-terminal-list/pull/3) against `main`. **Not merged, not tagged, no release, no version bump, website (`docs/`) untouched, nothing installed into the live AddOns folder.**
+**Where:** PR #3 (https://github.com/ninepointlabs/the-terminal-list/pull/3, `feat/group-history`), squash-merged to `main` as `5a6c130` at Tim's request ("Merge PR #3 and cut a new release"). **Released as v0.2.0** (2026-11-27): https://github.com/ninepointlabs/the-terminal-list/releases/tag/v0.2.0. The annotated tag points at the README status-line commit (→ v0.2.0) on `main`.
+  - Before tagging, `omaforge clients` reported Forever 1.60.1.71139 / Interface 16001, which matches both TOCs. Tests on merged `main`: 68/68 (`lua5.1` and `luajit`); `luac5.1 -p` passes on every `.lua`.
+  - Website (`docs/`, ttl.myazerothlife.com) **not** updated for v0.2.0 (not authorized). Nothing installed into the live AddOns folder; WTF/SavedVariables untouched. Not published to CurseForge/Wago/WoWInterface.
 
 **What landed:**
 - **Data:** `TheTerminalListDB.groups` (key `name-realm` → record: name/last/realm/class/race/faction, `count`, `first`, `seen`, `sessions`). Separate from `entries` and `good`: grouping never adds anyone to a list, and removing someone from a list keeps their history. Recorder in `Modules/Groups.lua` (`ns.Groups`).
