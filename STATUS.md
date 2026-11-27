@@ -62,7 +62,7 @@ Tim (2026-11-24): "a second list I can add people to, which are the good folk, a
 
 Tim (2026-11-27): "add possibly being able to write click on their name an pull the details on all the times we grouped" / "and what dungeon or quest it was on maybe".
 
-**Where:** branch `feat/group-history`, PR __PR__ against `main`. **Not merged, not tagged, no release, no version bump, website (`docs/`) untouched, nothing installed into the live AddOns folder.**
+**Where:** branch `feat/group-history`, PR #3 (https://github.com/ninepointlabs/the-terminal-list/pull/3) against `main`. **Not merged, not tagged, no release, no version bump, website (`docs/`) untouched, nothing installed into the live AddOns folder.**
 
 **What landed:**
 - **Data:** `TheTerminalListDB.groups` (key `name-realm` → record: name/last/realm/class/race/faction, `count`, `first`, `seen`, `sessions`). Separate from `entries` and `good`: grouping never adds anyone to a list, and removing someone from a list keeps their history. Recorder in `Modules/Groups.lua` (`ns.Groups`).
@@ -87,7 +87,7 @@ Tim (2026-11-27): "add possibly being able to write click on their name an pull 
 4. History view lives inside the main window (Past groups panel) rather than a second floating window.
 5. `zone` is where the session started; dungeons are a separate list. Quest "progressed" comes only from `QUEST_WATCH_UPDATE`; shared/tracked quests aren't inferred.
 
-**Tests:** see the PR / brief STATUS for counts. New coverage: same group / disconnect / reload / long group / re-invite inside the window don't increment; after the window and on another character they do; party ↔ raid; me, secret, Unknown, NPC and secret-GUID units not stored; unreadable roster changes nothing; battleground raid not recorded; dungeon hidden then readable (attached once, no increment, never invented); quests accepted/progressed/turned in via cache and `GetTitleText`, headers/secret/empty/solo ignored; trim keeps count; badge combinations and toggles, forbidden/secret plates; tooltip singular/plural/last date/zone/dungeon, neither list; menu item only with history (target, party, chat name), details view content; `/tlist groups`; Recognition toggles; schema 2 → 3 migration; `ns.Try` nil holes.
+**Tests:** `lua5.1 tests/run.lua` → **68 passed, 0 failed** (54 before + 14 new); `luajit tests/run.lua` → 68/68; `luac5.1 -p` on every `.lua` passes. New coverage: same group / disconnect / reload / long group / re-invite inside the window don't increment; after the window and on another character they do; party ↔ raid; me, secret, Unknown, NPC and secret-GUID units not stored; unreadable roster changes nothing; battleground raid not recorded; dungeon hidden then readable (attached once, no increment, never invented); quests accepted/progressed/turned in via cache and `GetTitleText`, headers/secret/empty/solo ignored; trim keeps count; badge combinations and toggles, forbidden/secret plates; tooltip singular/plural/last date/zone/dungeon, neither list; menu item only with history (target, party, chat name), details view content; `/tlist groups`; Recognition toggles; schema 2 → 3 migration; `ns.Try` nil holes.
 
 **In-game checklist (past groups):**
 1. `/reload` on the PR build (scratch install only) and check `/tlist` › Past groups says "No past groups yet."
