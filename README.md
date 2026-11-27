@@ -7,6 +7,10 @@ their nameplate and on the target frame, a line on their tooltip, and a mark on 
 A second list, **the Good Folk**, is for people you want to remember kindly. They get a **pink heart** in the same
 places instead of the crosshair, and are never added by PvP or alerted on.
 
+**Past groups:** everyone you party or raid with is remembered from now on, separately from both lists: how many times
+you've grouped, when, where, the dungeon and quests if the game shows them, and which of your characters you were on.
+A small **number badge** shows the count beside their name; right-click them for **Group history**.
+
 It's a sibling of [Andric's Addon](https://andricsaddon.myazerothlife.com),
 [Parzelle's Addon](https://parzelles-addon.myazerothlife.com),
 [Tristan's Addon](https://tristans-addon.myazerothlife.com),
@@ -47,6 +51,7 @@ folder is `World of Warcraft/_forever_/Interface/AddOns/TheTerminalList`. From a
 | `/tlist good [Name[-Realm]] [note]` | add to the Good Folk; no name = your current target |
 | `/tlist ungood [Name[-Realm]]` | remove from the Good Folk (also `/tlist good remove`) |
 | `/tlist goodnote [Name[-Realm]] [text]` | set a Good Folk note (also `/tlist good note`; no text opens an editor) |
+| `/tlist groups [Name[-Realm]]` | group history with someone; no name = your target, no target = everyone you've grouped with |
 | `/tlist search <text>` | open the list filtered by name, realm, note, zone, race or class |
 | `/tlist settings` | settings |
 | `/tlist help` | the commands |
@@ -54,7 +59,7 @@ folder is `World of Warcraft/_forever_/Interface/AddOns/TheTerminalList`. From a
 - **Right-click** a player's portrait (target, focus, party, raid) or their name in chat: **Add to The Terminal List**, or
   for someone already listed, **Edit note** / **Remove from The Terminal List**. Separate entries handle the Good Folk:
   **Add to the Good Folk**, **Edit Good Folk note**, **Remove from the Good Folk**. For someone on one list, the other
-  list's entry reads **Move to …**.
+  list's entry reads **Move to …**. Anyone you've grouped with (on a list or not) also gets **Group history**.
 - The **window** (`/tlist`, the minimap button or the addon compartment) lists everyone with name-realm, race, class,
   faction, note, how they were added (manual or PvP kill), kill count, date and zone. You can search, filter by
   PvP/manual, sort (newest, most kills, name), edit notes and remove people there. The **Good Folk** filter shows the
@@ -71,6 +76,21 @@ folder is `World of Warcraft/_forever_/Interface/AddOns/TheTerminalList`. From a
   "Good Folk" and shows the note. Their name is never painted red, and the "is here" alert never fires for them.
 - **Never automatic:** nobody is added to the Good Folk by the addon. If one of the Good Folk kills you (or helps), they
   aren't added to The Terminal List or counted; chat notes that they're on the Good Folk.
+
+### Past groups
+
+- **Going forward only.** Groups from before you installed this version can't be known, so history starts empty.
+- **Separate from the lists.** Grouping with someone never adds them to The Terminal List or the Good Folk; removing
+  someone from a list keeps their group history.
+- **Who:** every other player in your party or raid (never you, pets or NPCs; a name the game hides is skipped). Kept
+  account-wide, keyed by Name-Realm like the lists. Battleground and arena raids don't start a session.
+- **What each session keeps:** date and time, the zone it started in, any dungeon/instance you entered together, quests
+  you accepted, progressed or turned in while grouped, the character you were on, and party or raid. Anything the game
+  doesn't show cleanly is left out, never guessed; a dungeon name hidden mid-run is filled in later if it shows up.
+- **One session, not five:** seeing the same person in your group again within **15 minutes** (a disconnect, a
+  `/reload`, a quick re-invite, a party turned raid) is the same session. Grouping again later counts again.
+- The last **50 sessions** per player are kept; the count always includes older ones.
+- **Group history** (right-click, `/tlist groups`, or **Past groups** in the window) lists every recorded session.
 
 ### Open-world PvP deaths
 
@@ -96,7 +116,11 @@ All on by default except the alert; each can be switched off in Settings › Rec
 - **Nameplates:** a red crosshair beside the name. Nameplates only show at fairly close range, so turn on player
   nameplates in the game's options. Blizzard's own nameplates are used; Plater etc. aren't needed.
 - **Target frame:** a small crosshair on the portrait.
-- **Tooltip:** "On The Terminal List", their note, kill count and how they were added.
+- **Group badge:** a small blue number (times grouped) beside the name on nameplates and the target frame. On its own
+  for people on neither list, beside the heart for the Good Folk. The Terminal List keeps just the crosshair; an
+  optional setting (off) puts the number beside it too.
+- **Tooltip:** "On The Terminal List", their note, kill count and how they were added; for anyone you've grouped with,
+  "Grouped together N times" and the last date, zone and dungeon.
 - **Chat:** a crosshair in front of their lines, and their name in red when someone mentions them. The clickable
   `[Name]` itself keeps its normal colour, because addons can't recolour it safely.
 - **Alert (off by default):** the first time each session you see a listed player (nameplate, target, mouse-over), a

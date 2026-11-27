@@ -1,6 +1,6 @@
 ## Interface: 16001
 ## Title: The Terminal List
-## Notes: Your watch list for WoW Forever: mark players who crossed you, were rude, or don't play nice (both factions). Add by hand or right-click; open-world PvP killers are added on their own (never battlegrounds, arenas, instances or duels). Spot them again by a red crosshair on nameplates and the target frame, a tooltip line and marked chat. A second list, the Good Folk, marks people you like with a heart instead (never added by PvP).
+## Notes: Your watch list for WoW Forever: mark players who crossed you, were rude, or don't play nice (both factions). Add by hand or right-click; open-world PvP killers are added on their own (never battlegrounds, arenas, instances or duels). Spot them again by a red crosshair on nameplates and the target frame, a tooltip line and marked chat. A second list, the Good Folk, marks people you like with a heart instead (never added by PvP). Past groups: everyone you party or raid with from now on is remembered (times grouped, zone, dungeon, quests), shown as a number badge and tooltip line; right-click for their group history.
 ## Author: Nine Point Labs
 ## Version: @project-version@
 ## X-Website: https://github.com/ninepointlabs/the-terminal-list
@@ -15,6 +15,7 @@ Core\DB.lua
 Modules\List.lua
 Modules\Combat.lua
 Modules\Alert.lua
+Modules\Groups.lua
 Modules\Nameplates.lua
 Modules\Target.lua
 Modules\Tooltip.lua
@@ -24,6 +25,7 @@ UI\Widgets.lua
 UI\Popups.lua
 UI\Main.lua
 UI\Panels\List.lua
+UI\Panels\Groups.lua
 UI\Panels\Options.lua
 UI\Minimap.lua
 Core\Boot.lua

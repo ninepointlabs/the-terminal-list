@@ -20,6 +20,18 @@ local function SoftRefresh()
     end)
 end
 
+-- Roster changes (GROUP_ROSTER_UPDATE on modern clients; the PARTY_/RAID_
+-- events on older ones), zoning, and the quest events recorded while grouped.
+local GROUP_ROSTER = { GROUP_ROSTER_UPDATE = true, GROUP_JOINED = true, GROUP_LEFT = true, GROUP_FORMED = true,
+    PARTY_MEMBERS_CHANGED = true, RAID_ROSTER_UPDATE = true, PARTY_CONVERTED_TO_RAID = true }
+local QUEST_EVENTS = { QUEST_ACCEPTED = true, QUEST_TURNED_IN = true, QUEST_WATCH_UPDATE = true,
+    QUEST_COMPLETE = true, QUEST_LOG_UPDATE = true }
+ns.GROUP_EVENTS = {}
+for ev in pairs(GROUP_ROSTER) do table.insert(ns.GROUP_EVENTS, ev) end
+for ev in pairs(QUEST_EVENTS) do table.insert(ns.GROUP_EVENTS, ev) end
+table.insert(ns.GROUP_EVENTS, "ZONE_CHANGED_NEW_AREA")
+table.sort(ns.GROUP_EVENTS)
+
 local function OnLogin()
     if ns.disabled then
         ns.Print(("This addon is for WoW Forever only (needs WOW_PROJECT_ID %d, this client reports %s). It will stay off."):format(
@@ -39,6 +51,10 @@ local function OnLogin()
         "DUEL_REQUESTED", "DUEL_INBOUNDS", "DUEL_OUTOFBOUNDS", "DUEL_FINISHED" }) do
         pcall(f.RegisterEvent, f, ev)
     end
+    -- Past groups (Modules/Groups.lua). Events this client doesn't have fail
+    -- to register quietly.
+    for _, ev in ipairs(ns.GROUP_EVENTS) do pcall(f.RegisterEvent, f, ev) end
+    ns.Groups.ScanSoon()
     -- Only when this client hands the combat log to addons (see Modules/Combat.lua).
     if ns.Combat.HasCombatLog() then pcall(f.RegisterEvent, f, "COMBAT_LOG_EVENT_UNFILTERED") end
     RefreshMarks()
@@ -73,6 +89,13 @@ f:SetScript("OnEvent", function(_, event, ...)
         if unit then pcall(ns.Nameplates.Removed, unit) end
     elseif event == "PLAYER_ENTERING_WORLD" then
         RefreshMarks()
+        ns.Groups.ScanSoon()
+    elseif GROUP_ROSTER[event] then
+        ns.Groups.ScanSoon()
+    elseif event == "ZONE_CHANGED_NEW_AREA" then
+        pcall(ns.Groups.NoteInstance)
+    elseif QUEST_EVENTS[event] then
+        pcall(ns.Groups.OnQuestEvent, event, ...)
     elseif event:match("^DUEL_") then
         ns.Combat.OnDuel(event, ...)
     end
@@ -85,6 +108,10 @@ ns.On("LIST_CHANGED", function()
     SoftRefresh()
 end)
 ns.On("RECOGNITION_CHANGED", RefreshMarks)
+ns.On("GROUPS_CHANGED", function()
+    RefreshMarks()
+    SoftRefresh()
+end)
 ns.On("MINIMAP_TOGGLE", function() ns.UI.MinimapButton() end)
 
 ----------------------------------------------------------------------------
@@ -225,6 +252,35 @@ function Cmd.Good(rest)
     return Cmd.GoodAdd(rest)
 end
 
+-- /tlist groups [Name[-Realm]]: someone's group history (no name: my target;
+-- no target either: everyone I've grouped with).
+function Cmd.Groups(rest)
+    rest = ns.Trim(rest)
+    local key, label
+    if rest ~= "" then
+        local name = ns.List.Parse(rest)
+        if not name then
+            ns.Print("\"" .. ns.Escape(rest) .. "\" doesn't look like a character name. Use Name or Name-Realm.")
+            return nil
+        end
+        key, label = ns.Groups.KeyFor(rest), name
+    else
+        local info
+        key, info = ns.List.KeyForUnit("target")
+        label = info and info.name
+        if not key then
+            ns.UI.ShowGroupHistory(nil)
+            return true
+        end
+    end
+    if ns.Groups.Count(key) <= 0 then
+        ns.Print(("No past groups with %s yet. Groups are recorded from when this feature was installed on."):format(ns.Escape(label or "them")))
+        return nil
+    end
+    ns.UI.ShowGroupHistory(key)
+    return ns.Groups.Get(key)
+end
+
 function Cmd.Help()
     ns.Print("/tlist  open or close the window")
     ns.Print("/tlist add [Name[-Realm]] [note]  add (no name: your target)")
@@ -233,6 +289,7 @@ function Cmd.Help()
     ns.Print(ns.HeartIcon() .. " /tlist good [Name[-Realm]] [note]  add to the Good Folk (no name: your target)")
     ns.Print("/tlist ungood [Name[-Realm]]  remove from the Good Folk (also /tlist good remove)")
     ns.Print("/tlist goodnote [Name[-Realm]] [text]  Good Folk note (also /tlist good note)")
+    ns.Print("/tlist groups [Name[-Realm]]  past groups with someone (no name: your target; no target: everyone)")
     ns.Print("/tlist search <text> · /tlist settings · /tlist help")
 end
 
@@ -259,6 +316,8 @@ function ns.Slash(msg)
         return Cmd.GoodRemove(rest)
     elseif cmd == "goodnote" then
         return Cmd.GoodNote(rest)
+    elseif cmd == "groups" or cmd == "group" or cmd == "history" then
+        return Cmd.Groups(rest)
     elseif cmd == "search" or cmd == "find" then
         ns.UI.SetFilter(rest)
         ns.UI.Open("list")

@@ -13,10 +13,11 @@ function UI.RegisterPanel(p)
     table.insert(ns.PanelOrder, p.key)
 end
 
-UI.NAV = { "list", "settings" }
+UI.NAV = { "list", "groups", "settings" }
 UI.ALIASES = {
     options = { "settings" }, config = { "settings" }, about = { "settings", "About" },
     recognition = { "settings", "Recognition" }, pvp = { "settings", "List & PvP" },
+    history = { "groups", "all" },
 }
 
 local W, H, SIDE, HEAD = 900, 620, 200, 56

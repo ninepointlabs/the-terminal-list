@@ -21,6 +21,8 @@ M.state = {
     me = { guid = "Player-1-0000000A", name = "Rip", class = "ROGUE", race = "Human", raceToken = "Human", faction = "Alliance" },
     units = {},        -- token -> { guid, name, realm, player, class, race, raceToken, faction, hostile, pet = guid }
     guids = {},        -- guid -> { name, realm, class, race, raceToken } (GetPlayerInfoByGUID)
+    group = nil,       -- nil = solo; { kind = "party" | "raid", secret = bool } (members are party1-4 / raid1-40 in units)
+    instanceName = nil, -- GetInstanceInfo's name inside an instance (default "Somewhere"); may be M.SECRET
 }
 local S = M.state
 
@@ -195,7 +197,29 @@ G.GetPlayerInfoByGUID = function(guid)
     return x.class, x.class, x.race, x.raceToken, 2, x.name, x.realm or ""
 end
 G.IsInInstance = function() if S.instanceType then return true, S.instanceType end return false, "none" end
-G.GetInstanceInfo = function() local t = S.instanceType or "none" return "Somewhere", t end
+G.GetInstanceInfo = function() local t = S.instanceType or "none" return S.instanceType and (S.instanceName or "Somewhere") or "Elwynn Forest", t end
+
+-- Groups
+G.IsInRaid = function()
+    if S.group and S.group.secret then return M.SECRET end
+    return S.group ~= nil and S.group.kind == "raid"
+end
+G.IsInGroup = function()
+    if S.group and S.group.secret then return M.SECRET end
+    return S.group ~= nil
+end
+G.GetNumGroupMembers = function()
+    if not S.group then return 0 end
+    local n = 0
+    if S.group.kind == "raid" then for i = 1, 40 do if S.units["raid" .. i] then n = i end end return n end
+    for i = 1, 4 do if S.units["party" .. i] then n = n + 1 end end
+    return n + 1
+end
+G.GetNumSubgroupMembers = function()
+    local n = 0
+    for i = 1, 4 do if S.units["party" .. i] then n = n + 1 end end
+    return n
+end
 G.C_NamePlate = {
     GetNamePlateForUnit = function(u) return M.plates[u] end,
     GetNamePlates = function() local out = {} for _, p in pairs(M.plates) do table.insert(out, p) end return out end,
@@ -236,6 +260,9 @@ local OPTIONAL = {
     C_PvP = true, IsActiveBattlefieldArena = true, UnitInBattleground = true,
     UnitTokenFromGUID = true, UnitIsOwnerOrControllerOfUnit = true,
     ChatFrame_AddMessageEventFilter = true, TargetFramePortrait = true,
+    -- Quest log: tests install the Classic API (GetQuestLogTitle) to cover it.
+    C_QuestLog = true, GetQuestLogTitle = true, GetNumQuestLogEntries = true, GetTitleText = true,
+    GetNumPartyMembers = true,
     TheTerminalListDB = true, TheTerminalListCharDB = true, TheTerminalListFrame = true,
     TheTerminalListMinimapButton = true, TheTerminalListSearch = true, TheTerminalListTargetMark = true,
     SLASH_THETERMINALLIST1 = true, TheTerminalList_OnCompartmentClick = true,

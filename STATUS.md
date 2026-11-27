@@ -58,6 +58,49 @@ Tim (2026-11-24): "a second list I can add people to, which are the good folk, a
 10. Existing Terminal List players still show the **red crosshair** everywhere; an existing v0.1.0 list is intact after `/reload`.
 11. `Media/Heart.tga` loads (no green square).
 
+## Past groups (2026-11-27, PR open, not merged or released)
+
+Tim (2026-11-27): "add possibly being able to write click on their name an pull the details on all the times we grouped" / "and what dungeon or quest it was on maybe".
+
+**Where:** branch `feat/group-history`, PR #3 (https://github.com/ninepointlabs/the-terminal-list/pull/3) against `main`. **Not merged, not tagged, no release, no version bump, website (`docs/`) untouched, nothing installed into the live AddOns folder.**
+
+**What landed:**
+- **Data:** `TheTerminalListDB.groups` (key `name-realm` → record: name/last/realm/class/race/faction, `count`, `first`, `seen`, `sessions`). Separate from `entries` and `good`: grouping never adds anyone to a list, and removing someone from a list keeps their history. Recorder in `Modules/Groups.lua` (`ns.Groups`).
+- **Session fields:** `start`, `seen`, `type` (`party`/`raid`), `zone` (where it started), `instances` (list, only when readable), `quests` (list of `{title, status}` with status `accepted`/`progressed`/`completed`, only when readable), `char` (`{name, last?, realm}` of the character Tim was on).
+- **Roster:** `GROUP_ROSTER_UPDATE` plus `GROUP_JOINED`/`GROUP_LEFT`/`GROUP_FORMED`/`PARTY_MEMBERS_CHANGED`/`RAID_ROSTER_UPDATE`/`PARTY_CONVERTED_TO_RAID` (each registered under `pcall`, so events this client lacks are skipped), and `PLAYER_ENTERING_WORLD`. Scans are debounced (0.5 s). `IsInRaid`/`IsInGroup` (fallbacks `GetNumSubgroupMembers`/`GetNumPartyMembers`), units `raid1..N` or `party1..4`, identity via the existing `List.FromUnit` + `List.ResolveKey`, so me, pets, NPCs, "Unknown" and secret names are skipped. A secret/unreadable roster changes nothing.
+- **Session / cooldown rule:** a teammate seen in my group again within **15 minutes** (`Groups.COOLDOWN`) of the last time I saw them in a group, **on the same character of mine**, continues the same session: the same active group, a disconnect, `/reload`, a brief drop and re-invite, party ↔ raid (type is updated). Later than that, or on another of my characters, is a new session (`count + 1`). While grouped, a 60 s tick (`Groups.TICK`) refreshes `seen`, so a long quiet group never times out. `seen` is saved (unix `time()`), so the rule survives reloads and logouts.
+- **Battlegrounds/arenas** never start a session (their raid is strangers the game put together); friends already in a session stay in it.
+- **Dungeons:** on each roster scan, `PLAYER_ENTERING_WORLD` and `ZONE_CHANGED_NEW_AREA`, if `IsInInstance()` is readably true, the name from `GetInstanceInfo()` (else `GetRealZoneText()`) is added to every current teammate's open session. Zoning in doesn't start a session. A secret/empty name is left out and filled in later in the same session if it becomes readable. Nothing is guessed.
+- **Quests** (only while grouped, only to the current teammates' open sessions): `QUEST_ACCEPTED` (Classic `(logIndex, questID)` or modern `(questID)`), `QUEST_WATCH_UPDATE` (progressed), `QUEST_TURNED_IN` (title from `C_QuestLog.GetTitleForQuestID` if it exists, else a questID→title cache filled on `QUEST_LOG_UPDATE`, else `GetTitleText()` captured at `QUEST_COMPLETE`). Log reads use `C_QuestLog.GetInfo` only if present, else `GetQuestLogTitle`; headers and secret titles are skipped. Status only moves up (accepted → progressed → turned in). Up to 20 quests per session.
+- **Cap:** the newest **50 sessions** per player are kept (`Groups.MAX_SESSIONS`); `count` always includes trimmed ones, and the history view says when older sessions were trimmed.
+- **Schema 3 migration** (`Core/DB.lua`): adds an empty `groups` table when missing; `entries`, `good`, every setting, minimap, sort and filter untouched (deep-compare test from a populated schema-2 file). New settings get defaults only: `groupBadge = true`, `groupBadgeList = false`.
+- **Badges** (`Modules/Nameplates.lua`, `Modules/Target.lua`): a small blue number pill (`99+` cap) beside the name. Neither list + history: number only. Good Folk + history: heart then number, side by side (`[♥][3] Name`). Terminal List + history: crosshair only, unless **Settings › Recognition › "...also beside The Terminal List's crosshair"** (off by default). No history: nothing. Follows the nameplate/target toggles plus the new badge toggle; forbidden/secret plates are skipped as before. The target badge has its own tooltip.
+- **Tooltip:** for anyone with history (on a list or not, tooltip setting on): "Grouped together 1 time"/"N times" and "Last: YYYY-MM-DD in Zone · Dungeon". Terminal List / Good Folk lines unchanged.
+- **Right-click:** **Group history** on the existing `MENU_UNIT_*` hooks (target, focus, party, raid, chat names…) only when there's history. Opens the **Past groups** view in the main window (also a new sidebar entry): every session, newest first, with date/time, Party/Raid chip, zone, dungeon/instance, quests (with status), "You were on <character>", and length. Empty fields are omitted. The overview lists everyone grouped with.
+- **Slash:** `/tlist groups [Name[-Realm]]` (also `group`, `history`): by name, else target, else the overview. `add`/`remove`/`note`/`good` unchanged. Listed in `/tlist help`, Settings › About and › List & PvP, README, both TOC `## Notes`.
+- **Fix found on the way:** `ns.Try` dropped results after a `nil` (it used `unpack(res, 2)`), so e.g. `GetQuestLogTitle`'s 8th return (questID) could be lost. It now keeps every result (`select("#")`). Covered by a test.
+
+**Decisions I made (Tim's to change):**
+1. 15-minute cooldown, same character only; a re-invite inside 15 min is the same session even if the group technically ended.
+2. Battleground/arena raids don't create sessions.
+3. Badge colour calm blue (`#9ec5ff`), so it can't be confused with the crosshair or heart.
+4. History view lives inside the main window (Past groups panel) rather than a second floating window.
+5. `zone` is where the session started; dungeons are a separate list. Quest "progressed" comes only from `QUEST_WATCH_UPDATE`; shared/tracked quests aren't inferred.
+
+**Tests:** `lua5.1 tests/run.lua` → **68 passed, 0 failed** (54 before + 14 new); `luajit tests/run.lua` → 68/68; `luac5.1 -p` on every `.lua` passes. New coverage: same group / disconnect / reload / long group / re-invite inside the window don't increment; after the window and on another character they do; party ↔ raid; me, secret, Unknown, NPC and secret-GUID units not stored; unreadable roster changes nothing; battleground raid not recorded; dungeon hidden then readable (attached once, no increment, never invented); quests accepted/progressed/turned in via cache and `GetTitleText`, headers/secret/empty/solo ignored; trim keeps count; badge combinations and toggles, forbidden/secret plates; tooltip singular/plural/last date/zone/dungeon, neither list; menu item only with history (target, party, chat name), details view content; `/tlist groups`; Recognition toggles; schema 2 → 3 migration; `ns.Try` nil holes.
+
+**In-game checklist (past groups):**
+1. `/reload` on the PR build (scratch install only) and check `/tlist` › Past groups says "No past groups yet."
+2. Invite someone: after a second they appear in Past groups; their nameplate and target frame show a blue **1**.
+3. Hover them: "Grouped together 1 time" and "Last: <today> in <zone>".
+4. `/reload`, leave and re-invite within 15 min, convert to raid: still **1**.
+5. Run a dungeon together: the session shows "Dungeon / instance: <name>". Accept/turn in a quest while grouped: it's listed with "(accepted)" / "(turned in)".
+6. Right-click their portrait and a chat name: **Group history** opens their sessions. Right-click a stranger: no item.
+7. Good Folk teammate: heart and number side by side, readable at plate scale. Terminal List teammate: crosshair only; tooltip shows the count. Turn on "...also beside The Terminal List's crosshair": number appears.
+8. Settings › Recognition › badge off: numbers disappear at once.
+9. Watch for Lua errors in instances (secret values) and in battlegrounds (no strangers recorded).
+10. Check `QUEST_ACCEPTED`'s argument shape on Forever (`/etrace`): `(logIndex, questID)` vs `(questID)`; both are handled.
+
 ## Decisions
 
 **Tim decided (2026-11-20):**

@@ -37,7 +37,7 @@ S["List & PvP"] = function(L)
     L:Label("Window")
     L:Check("Show minimap button", not g.minimap.hide, function(v) g.minimap.hide = not v ns.Fire("MINIMAP_TOGGLE") end)
     L:Check("Debug messages", s.debug, function(v) s.debug = v end)
-    L:Text(dim("Slash: /tlist · /tlist add [Name[-Realm]] [note] · /tlist remove [Name] · /tlist note [Name] [text] · /tlist good [Name] [note] · /tlist ungood [Name] · /tlist goodnote [Name] [text] · /tlist search <text> · /tlist settings · /tlist help"), { size = 12 })
+    L:Text(dim("Slash: /tlist · /tlist add [Name[-Realm]] [note] · /tlist remove [Name] · /tlist note [Name] [text] · /tlist good [Name] [note] · /tlist ungood [Name] · /tlist goodnote [Name] [text] · /tlist groups [Name] · /tlist search <text> · /tlist settings · /tlist help"), { size = 12 })
 end
 
 S.Recognition = function(L)
@@ -53,9 +53,16 @@ S.Recognition = function(L)
         L:Text(dim("Nameplates only show at fairly close range; turn on enemy/friendly player nameplates in the game's options."), { size = 12, indent = 30 })
     end
     L:Check("Crosshair on the target frame", s.target, function(v) s.target = v ns.Fire("RECOGNITION_CHANGED") end)
-    L:Check("Tooltip line (note and kill count)", s.tooltip, function(v) s.tooltip = v end)
+    L:Check("Tooltip line (note, kill count, times grouped)", s.tooltip, function(v) s.tooltip = v end)
     L:Check("Mark their chat lines and colour their name in messages", s.chat, function(v) s.chat = v end,
         "A crosshair in front of their lines; their name inside messages turns red.")
+    L:Label("Past groups")
+    L:Check("Number badge for people I've grouped with", s.groupBadge, function(v) s.groupBadge = v ns.Fire("RECOGNITION_CHANGED") UI.Refresh() end,
+        "On nameplates and the target frame (with those marks turned on): how many separate times you've grouped. Beside the heart for the Good Folk.")
+    L:Text(dim("Shows on its own for people on neither list, beside the heart for the Good Folk. The Terminal List keeps just the crosshair; their count is in the tooltip."), { size = 12, indent = 30 })
+    local gl = L:Check("...also beside The Terminal List's crosshair", s.groupBadgeList, function(v) s.groupBadgeList = v ns.Fire("RECOGNITION_CHANGED") end,
+        "Off by default, so the crosshair stays uncluttered.")
+    if not s.groupBadge and gl.Disable then gl:Disable() end
     L:Label("Alert")
     L:Check("Alert me the first time I see a listed player each session", s.alert, function(v) s.alert = v UI.Refresh() end,
         "Off by default. A chat line and a raid-warning message, once per player per session. The Terminal List only: the Good Folk never trigger it.")
@@ -73,8 +80,10 @@ S.About = function(L)
     L:Text(dim("Identity is Name-Realm. A player who renames or transfers realms shows up as someone new; their old entry stays as it was."), { size = 12 })
     L:Label("The Good Folk")
     L:Text(ns.HeartIcon(14) .. " A second list for people you want to remember kindly. They get a heart instead of the crosshair, never trigger the alert, and are never added (or counted) by PvP. Someone can be on one list at a time: adding them to one moves them off the other, and chat says so.", { size = 12 })
+    L:Label("Past groups")
+    L:Text("Everyone you party or raid with is remembered from now on (groups from before this feature can't be known): how many separate times, when, the zone, any dungeon you entered together, quests you accepted or turned in while grouped, and which of your characters you were on. Rejoining the same people within 15 minutes is the same group. It never adds anyone to The Terminal List or the Good Folk. Right-click someone and choose Group history, or type /tlist groups Name.", { size = 12 })
     L:Label("Commands")
-    L:Text("/tlist  open or close the window\n/tlist add [Name[-Realm]] [note]  add (no name: your target)\n/tlist remove [Name[-Realm]]  remove (no name: your target)\n/tlist note [Name[-Realm]] [text]  set the note\n/tlist good [Name[-Realm]] [note]  add to the Good Folk (no name: your target)\n/tlist ungood [Name[-Realm]]  remove from the Good Folk (or /tlist good remove)\n/tlist goodnote [Name[-Realm]] [text]  Good Folk note (or /tlist good note)\n/tlist search <text>  search the list\n/tlist settings  these settings\n/tlist help", { size = 12 })
+    L:Text("/tlist  open or close the window\n/tlist add [Name[-Realm]] [note]  add (no name: your target)\n/tlist remove [Name[-Realm]]  remove (no name: your target)\n/tlist note [Name[-Realm]] [text]  set the note\n/tlist good [Name[-Realm]] [note]  add to the Good Folk (no name: your target)\n/tlist ungood [Name[-Realm]]  remove from the Good Folk (or /tlist good remove)\n/tlist goodnote [Name[-Realm]] [text]  Good Folk note (or /tlist good note)\n/tlist groups [Name[-Realm]]  past groups (no name: your target; no target: everyone)\n/tlist search <text>  search the list\n/tlist settings  these settings\n/tlist help", { size = 12 })
     L:Label("Links")
     L:Link("Source and issues", "https://github.com/ninepointlabs/the-terminal-list", "github.com/ninepointlabs/the-terminal-list")
     L:Label("Sister addons")
