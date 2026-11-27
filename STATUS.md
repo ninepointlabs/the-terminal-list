@@ -64,6 +64,8 @@ Tim (2026-11-27): "add possibly being able to write click on their name an pull 
 
 **Where:** PR #3 (https://github.com/ninepointlabs/the-terminal-list/pull/3, `feat/group-history`), squash-merged to `main` as `5a6c130` at Tim's request ("Merge PR #3 and cut a new release"). **Released as v0.2.0** (2026-11-27): https://github.com/ninepointlabs/the-terminal-list/releases/tag/v0.2.0. The annotated tag points at the README status-line commit (→ v0.2.0) on `main`.
   - Before tagging, `omaforge clients` reported Forever 1.60.1.71139 / Interface 16001, which matches both TOCs. Tests on merged `main`: 68/68 (`lua5.1` and `luajit`); `luac5.1 -p` passes on every `.lua`.
+  - The Release workflow passed (run 46076744660); Test passed on `main` (run 46076742584). Assets: `TheTerminalList-v0.2.0.zip` (TOC `## Version: v0.2.0`, Interface 16001; Core, Modules incl. `Modules/Groups.lua`, UI incl. `UI/Panels/Groups.lua`, `Media/Crosshair.tga` + `Media/Heart.tga`, LICENSE, CHANGELOG; no tests/tools; checked by downloading it) and `release.json` (flavor `forever`, interface 16001). Packager notes were replaced with a feature summary and install steps. No autonomix-cli line: no Linux executables.
+  - `omaforge check -c forever` shows Tim's install as `v0.1.1 -> v0.2.0`. I did **not** run `omaforge install`/`update`; Tim updates it himself. The in-game checklist below is still outstanding.
   - Website (`docs/`, ttl.myazerothlife.com) **not** updated for v0.2.0 (not authorized). Nothing installed into the live AddOns folder; WTF/SavedVariables untouched. Not published to CurseForge/Wago/WoWInterface.
 
 **What landed:**
